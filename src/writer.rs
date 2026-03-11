@@ -1,0 +1,273 @@
+use crate::buffer::VectorBuffer;
+use crate::common::*;
+use crate::string_intern::{InternMode, StringIntern};
+
+pub struct AuWriter<'a> {
+    msg_buf: &'a mut VectorBuffer,
+    string_intern: &'a mut StringIntern,
+}
+
+impl<'a> AuWriter<'a> {
+    pub fn new(buf: &'a mut VectorBuffer, string_intern: &'a mut StringIntern) -> Self {
+        AuWriter {
+            msg_buf: buf,
+            string_intern,
+        }
+    }
+
+    pub fn msg_buf_tellp(&self) -> usize {
+        self.msg_buf.tellp()
+    }
+
+    fn encode_string(&mut self, sv: &str) {
+        const MAX_INLINE_STRING_SIZE: usize = 31;
+        let bytes = sv.as_bytes();
+        if bytes.len() <= MAX_INLINE_STRING_SIZE {
+            self.msg_buf.put(0x20 | bytes.len() as u8);
+        } else {
+            self.msg_buf.put(Marker::String as u8);
+            self.value_int(bytes.len() as u64);
+        }
+        self.msg_buf.write_bytes(bytes);
+    }
+
+    fn encode_string_intern(&mut self, sv: &str, intern: InternMode) {
+        let idx = self.string_intern.idx(sv, intern);
+        match idx {
+            None => self.encode_string(sv),
+            Some(i) if i < 0x80 => {
+                self.msg_buf.put(0x80 | i as u8);
+            }
+            Some(i) => {
+                self.msg_buf.put(Marker::DictRef as u8);
+                self.value_int(i as u64);
+            }
+        }
+    }
+
+    // Public value methods
+
+    pub fn null(&mut self) -> &mut Self {
+        self.msg_buf.put(Marker::Null as u8);
+        self
+    }
+
+    pub fn value_bool(&mut self, b: bool) -> &mut Self {
+        self.msg_buf
+            .put(if b { Marker::True as u8 } else { Marker::False as u8 });
+        self
+    }
+
+    pub fn value_str(&mut self, sv: &str) -> &mut Self {
+        self.value_str_intern(sv, InternMode::ByFrequency)
+    }
+
+    pub fn value_str_intern(&mut self, sv: &str, intern: InternMode) -> &mut Self {
+        self.encode_string_intern(sv, intern);
+        self
+    }
+
+    pub fn value_i64(&mut self, i: i64) -> &mut Self {
+        if i >= 0 && i < 32 {
+            self.msg_buf.put(SMALL_INT_POSITIVE | i as u8);
+            return self;
+        }
+        if i < 0 && i > -32 {
+            self.msg_buf.put(SMALL_INT_NEGATIVE | (-i) as u8);
+            return self;
+        }
+        let neg = i < 0;
+        // Handle i64::MIN carefully to avoid overflow
+        let val: u64 = if i < 0 {
+            (-(i + 1)) as u64 + 1
+        } else {
+            i as u64
+        };
+        if val >= 1u64 << 48 {
+            self.msg_buf
+                .put(if neg { Marker::NegInt64 as u8 } else { Marker::PosInt64 as u8 });
+            self.msg_buf.write_bytes(&val.to_le_bytes());
+            return self;
+        }
+        self.msg_buf
+            .put(if neg { Marker::NegVarint as u8 } else { Marker::Varint as u8 });
+        self.value_int(val);
+        self
+    }
+
+    pub fn value_u64(&mut self, i: u64) -> &mut Self {
+        if i < 32 {
+            self.msg_buf.put(SMALL_INT_POSITIVE | i as u8);
+        } else if i >= 1u64 << 48 {
+            self.msg_buf.put(Marker::PosInt64 as u8);
+            self.msg_buf.write_bytes(&i.to_le_bytes());
+        } else {
+            self.msg_buf.put(Marker::Varint as u8);
+            self.value_int(i);
+        }
+        self
+    }
+
+    pub fn value_i32(&mut self, i: i32) -> &mut Self {
+        self.value_i64(i as i64)
+    }
+
+    pub fn value_u32(&mut self, i: u32) -> &mut Self {
+        self.value_u64(i as u64)
+    }
+
+    pub fn value_f64(&mut self, d: f64) -> &mut Self {
+        self.msg_buf.put(Marker::Double as u8);
+        self.msg_buf.write_bytes(&d.to_le_bytes());
+        self
+    }
+
+    pub fn value_f32(&mut self, f: f32) -> &mut Self {
+        self.value_f64(f as f64)
+    }
+
+    pub fn nanos(&mut self, n: u64) -> &mut Self {
+        self.msg_buf.put(Marker::Timestamp as u8);
+        self.msg_buf.write_bytes(&n.to_le_bytes());
+        self
+    }
+
+    // Map and array methods
+
+    pub fn start_map(&mut self) -> &mut Self {
+        self.msg_buf.put(Marker::ObjectStart as u8);
+        self
+    }
+
+    pub fn end_map(&mut self) -> &mut Self {
+        self.msg_buf.put(Marker::ObjectEnd as u8);
+        self
+    }
+
+    pub fn start_array(&mut self) -> &mut Self {
+        self.msg_buf.put(Marker::ArrayStart as u8);
+        self
+    }
+
+    pub fn end_array(&mut self) -> &mut Self {
+        self.msg_buf.put(Marker::ArrayEnd as u8);
+        self
+    }
+
+    pub fn key(&mut self, k: &str) {
+        self.encode_string_intern(k, InternMode::ForceIntern);
+    }
+
+    // Convenience: write a map with key-value pairs via closure
+    pub fn map(&mut self, f: impl FnOnce(&mut AuWriter)) -> &mut Self {
+        self.msg_buf.put(Marker::ObjectStart as u8);
+        f(self);
+        self.msg_buf.put(Marker::ObjectEnd as u8);
+        self
+    }
+
+    // Convenience: write an array with values via closure
+    pub fn array(&mut self, f: impl FnOnce(&mut AuWriter)) -> &mut Self {
+        self.msg_buf.put(Marker::ArrayStart as u8);
+        f(self);
+        self.msg_buf.put(Marker::ArrayEnd as u8);
+        self
+    }
+
+    /// Write a key-value pair
+    pub fn kv_str(&mut self, k: &str, v: &str) {
+        self.key(k);
+        self.value_str(v);
+    }
+
+    pub fn kv_i64(&mut self, k: &str, v: i64) {
+        self.key(k);
+        self.value_i64(v);
+    }
+
+    pub fn kv_u64(&mut self, k: &str, v: u64) {
+        self.key(k);
+        self.value_u64(v);
+    }
+
+    pub fn kv_f64(&mut self, k: &str, v: f64) {
+        self.key(k);
+        self.value_f64(v);
+    }
+
+    pub fn kv_bool(&mut self, k: &str, v: bool) {
+        self.key(k);
+        self.value_bool(v);
+    }
+
+    // Internal methods used by encoder
+
+    pub(crate) fn raw(&mut self, c: u8) {
+        self.msg_buf.put(c);
+    }
+
+    pub(crate) fn backref(&mut self, val: u32) {
+        self.msg_buf.write_bytes(&val.to_le_bytes());
+    }
+
+    pub(crate) fn value_int(&mut self, mut i: u64) {
+        if i < 1 << 7 {
+            self.msg_buf.put(i as u8);
+        } else if i < 1 << 14 {
+            let buf = self.msg_buf.raw(2);
+            buf[0] = (i & 0x7f | 0x80) as u8;
+            buf[1] = (i >> 7) as u8;
+        } else if i < 1 << 21 {
+            let buf = self.msg_buf.raw(3);
+            buf[0] = (i & 0x7f | 0x80) as u8;
+            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
+            buf[2] = (i >> 14) as u8;
+        } else if i < 1 << 28 {
+            let buf = self.msg_buf.raw(4);
+            buf[0] = (i & 0x7f | 0x80) as u8;
+            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
+            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
+            buf[3] = (i >> 21) as u8;
+        } else if i < 1 << 35 {
+            let buf = self.msg_buf.raw(5);
+            buf[0] = (i & 0x7f | 0x80) as u8;
+            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
+            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
+            buf[3] = ((i >> 21) & 0x7f | 0x80) as u8;
+            buf[4] = (i >> 28) as u8;
+        } else if i < 1 << 42 {
+            let buf = self.msg_buf.raw(6);
+            buf[0] = (i & 0x7f | 0x80) as u8;
+            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
+            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
+            buf[3] = ((i >> 21) & 0x7f | 0x80) as u8;
+            buf[4] = ((i >> 28) & 0x7f | 0x80) as u8;
+            buf[5] = (i >> 35) as u8;
+        } else if i < 1 << 49 {
+            let buf = self.msg_buf.raw(7);
+            buf[0] = (i & 0x7f | 0x80) as u8;
+            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
+            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
+            buf[3] = ((i >> 21) & 0x7f | 0x80) as u8;
+            buf[4] = ((i >> 28) & 0x7f | 0x80) as u8;
+            buf[5] = ((i >> 35) & 0x7f | 0x80) as u8;
+            buf[6] = (i >> 42) as u8;
+        } else {
+            loop {
+                let to_write = (i & 0x7f) as u8;
+                i >>= 7;
+                if i != 0 {
+                    self.msg_buf.put(to_write | 0x80);
+                } else {
+                    self.msg_buf.put(to_write);
+                    break;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn term(&mut self) {
+        self.msg_buf.put(Marker::RecordEnd as u8);
+        self.msg_buf.put(b'\n');
+    }
+}
