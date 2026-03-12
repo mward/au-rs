@@ -1,5 +1,5 @@
 [package]
-name = "au-rs"
+name = "au"
 version = "0.1.0"
 edition = "2021"
 

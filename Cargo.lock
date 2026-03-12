@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "au-rs"
+name = "au"
 version = "0.1.0"
 dependencies = [
  "serde_json",
