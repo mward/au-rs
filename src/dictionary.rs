@@ -86,12 +86,22 @@ impl Dictionary {
         self.dictionaries.last_mut().unwrap()
     }
 
+    /// Resolve a relative backref to an absolute position, erroring rather than
+    /// underflowing when the backref points before the start of the stream.
+    fn abs_pos(sor: usize, rel_dict_pos: usize) -> Result<usize, ParseError> {
+        sor.checked_sub(rel_dict_pos).ok_or_else(|| {
+            ParseError::new(format!(
+                "wrong backref: relDictPos {rel_dict_pos} exceeds start-of-record {sor}"
+            ))
+        })
+    }
+
     pub fn find_dictionary_ref(
         &self,
         sor: usize,
         rel_dict_pos: usize,
     ) -> Result<&Dict, ParseError> {
-        let pos = sor - rel_dict_pos;
+        let pos = Self::abs_pos(sor, rel_dict_pos)?;
         if let Some(dict) = self.dictionaries.iter().rev().find(|d| d.includes(pos)) {
             return Ok(dict);
         }
@@ -106,7 +116,7 @@ impl Dictionary {
         sor: usize,
         rel_dict_pos: usize,
     ) -> Result<&mut Dict, ParseError> {
-        let pos = sor - rel_dict_pos;
+        let pos = Self::abs_pos(sor, rel_dict_pos)?;
         if let Some(idx) = self.dictionaries.iter().rposition(|d| d.includes(pos)) {
             return Ok(&mut self.dictionaries[idx]);
         }

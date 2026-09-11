@@ -41,25 +41,24 @@ impl<'a> BufferByteSource<'a> {
 
     #[inline]
     pub fn read_bytes(&mut self, len: usize) -> Result<&'a [u8], ParseError> {
-        let end = self.pos + len;
-        if end > self.buf.len() {
-            return Err(ParseError::new(format!(
+        // `self.pos <= self.buf.len()` always holds, so this slice never panics.
+        let remaining = &self.buf[self.pos..];
+        let slice = remaining.get(..len).ok_or_else(|| {
+            ParseError::new(format!(
                 "read_bytes: not enough data, need {} more bytes",
-                end - self.buf.len()
-            )));
-        }
-        let slice = &self.buf[self.pos..end];
-        self.pos = end;
+                len - remaining.len()
+            ))
+        })?;
+        self.pos += len;
         Ok(slice)
     }
 
     #[inline]
     pub fn skip(&mut self, len: usize) -> Result<(), ParseError> {
-        let end = self.pos + len;
-        if end > self.buf.len() {
+        if len > self.buf.len() - self.pos {
             return Err(ParseError::new("skip: not enough data"));
         }
-        self.pos = end;
+        self.pos += len;
         Ok(())
     }
 }

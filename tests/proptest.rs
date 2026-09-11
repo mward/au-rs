@@ -260,6 +260,34 @@ fn arb_object() -> impl Strategy<Value = AuValue> {
         .prop_map(|m| AuValue::Object(m.into_iter().collect()))
 }
 
+// ---- malformed-input helpers ----
+
+/// Run the decoder purely for its side effects, discarding the result. Any
+/// panic (arithmetic under/overflow, out-of-range slice, capacity overflow)
+/// propagates and is reported by proptest as a failing case.
+fn decode_dont_panic(bytes: &[u8], expect_header: bool) {
+    let mut source = BufferByteSource::new(bytes);
+    let mut dictionary = Dictionary::new();
+    let mut handler = StringCollectingJsonHandler::new();
+    let mut record_handler = AuRecordHandler::new(&mut dictionary, &mut handler);
+    let _ = parse_stream(&mut source, &mut record_handler, expect_header);
+}
+
+/// LEB128-style varint encoder matching `decoder::read_varint`.
+fn push_varint(out: &mut Vec<u8>, mut v: u64) {
+    loop {
+        let mut byte = (v & 0x7f) as u8;
+        v >>= 7;
+        if v != 0 {
+            byte |= 0x80;
+        }
+        out.push(byte);
+        if v == 0 {
+            break;
+        }
+    }
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(512))]
 
@@ -317,5 +345,64 @@ proptest! {
         for got in &decoded {
             prop_assert_eq!(got, &expected(&records[0]));
         }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(2048))]
+
+    /// The decoder must never panic on arbitrary input: for any byte string it
+    /// either decodes or returns a `ParseError`, but always returns.
+    #[test]
+    fn decode_arbitrary_bytes_never_panics(bytes in prop::collection::vec(any::<u8>(), 0..512)) {
+        decode_dont_panic(&bytes, false);
+        decode_dont_panic(&bytes, true);
+    }
+
+    /// Arbitrary bytes appended to a validly-encoded stream must not panic.
+    /// This reaches decode paths that only run after a real header and dictionary.
+    #[test]
+    fn decode_valid_prefix_plus_garbage_never_panics(
+        prefix in arb_object(),
+        garbage in prop::collection::vec(any::<u8>(), 0..256),
+    ) {
+        let mut bytes = encode_records(std::slice::from_ref(&prefix));
+        bytes.extend_from_slice(&garbage);
+        decode_dont_panic(&bytes, true);
+    }
+
+    /// Crafted 'V' records with arbitrary backref and declared length must not
+    /// panic (covers `len - 2` underflow and oversized skip lengths).
+    #[test]
+    fn decode_value_record_arbitrary_backref_len_never_panics(
+        backref in any::<u32>(),
+        len in any::<u64>(),
+        payload in prop::collection::vec(any::<u8>(), 0..64),
+    ) {
+        let mut bytes = vec![b'V'];
+        bytes.extend_from_slice(&backref.to_le_bytes());
+        push_varint(&mut bytes, len);
+        bytes.extend_from_slice(&payload);
+        bytes.push(0x0f); // Marker::RecordEnd
+        bytes.push(b'\n');
+        decode_dont_panic(&bytes, false);
+    }
+
+    /// Crafted 'A' (dict-add) records with arbitrary backref and string lengths
+    /// must not panic (covers backref underflow and oversized string lengths).
+    #[test]
+    fn decode_dict_add_record_arbitrary_never_panics(
+        backref in any::<u32>(),
+        str_len in any::<u64>(),
+        payload in prop::collection::vec(any::<u8>(), 0..64),
+    ) {
+        let mut bytes = vec![b'A'];
+        bytes.extend_from_slice(&backref.to_le_bytes());
+        bytes.push(0x05); // Marker::String
+        push_varint(&mut bytes, str_len);
+        bytes.extend_from_slice(&payload);
+        bytes.push(0x0f); // Marker::RecordEnd
+        bytes.push(b'\n');
+        decode_dont_panic(&bytes, false);
     }
 }

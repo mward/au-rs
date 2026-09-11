@@ -345,8 +345,12 @@ pub fn parse_record<H: RecordHandler>(
         b'V' => {
             let backref = read_backref(source)?;
             let len = read_varint(source)? as usize;
+            // `len` covers the value plus its 2-byte terminator (RecordEnd + '\n').
+            let value_len = len.checked_sub(2).ok_or_else(|| {
+                ParseError::new(format!("Value record length too small: {len}"))
+            })?;
             let start_of_value = source.pos();
-            handler.on_value(backref as usize, len - 2, source)?;
+            handler.on_value(backref as usize, value_len, source)?;
             term(source)?;
             if source.pos() - start_of_value != len {
                 return Err(ParseError::new(
