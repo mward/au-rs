@@ -1,5 +1,7 @@
 use crate::byte_source::BufferByteSource;
-use crate::common::*;
+use crate::common::{
+    AU_FORMAT_VERSION, MAX_METADATA_SIZE, Marker, SMALL_INT_NEGATIVE, SMALL_INT_POSITIVE,
+};
 use crate::error::ParseError;
 use crate::handler::{RecordHandler, ValueHandler};
 
@@ -7,7 +9,7 @@ const MAX_DEPTH: usize = 2048;
 
 fn expect(source: &mut BufferByteSource, expected: u8) -> Result<(), ParseError> {
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new(format!("Unexpected EOF, expected 0x{expected:02x}")))?;
     if c != expected {
         return Err(ParseError::new(format!(
@@ -40,7 +42,7 @@ fn read_varint(source: &mut BufferByteSource) -> Result<u64, ParseError> {
             return Err(ParseError::new("Bad varint encoding"));
         }
         let i = source
-            .next()
+            .next_byte()
             .ok_or_else(|| ParseError::new("Unexpected end of file"))?;
         result |= ((i & 0x7f) as u64) << shift;
         shift += 7;
@@ -53,7 +55,7 @@ fn read_varint(source: &mut BufferByteSource) -> Result<u64, ParseError> {
 
 fn parse_format_version(source: &mut BufferByteSource) -> Result<u64, ParseError> {
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new("Expected version number, got EOF"))?;
     let version = if (c & !0x1f) == SMALL_INT_POSITIVE {
         (c & 0x1f) as u64
@@ -112,7 +114,7 @@ fn parse_full_string_record(
 ) -> Result<(), ParseError> {
     let sov = source.pos();
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new("Expected a string, got EOF"))?;
     let len = parse_string_length(source, c)?;
     handler.on_string_start(sov, len);
@@ -134,7 +136,7 @@ pub fn parse_value<H: ValueHandler>(
 
     let sov = source.pos();
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new("Unexpected EOF at start of value"))?;
 
     // High bit set -> small dict ref
@@ -251,7 +253,7 @@ fn parse_key<H: ValueHandler>(
 ) -> Result<(), ParseError> {
     let sov = source.pos();
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new("Unexpected EOF at start of key"))?;
     if c & 0x80 != 0 {
         handler.on_dict_ref(sov, (c & !0x80) as usize);
@@ -290,7 +292,7 @@ fn parse_full_string_to_string(
     max_len: usize,
 ) -> Result<String, ParseError> {
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new("Expected a string, got EOF"))?;
     let len = parse_string_length(source, c)?;
     if len > max_len {
@@ -306,7 +308,7 @@ pub fn parse_record<H: RecordHandler>(
     handler: &mut H,
 ) -> Result<bool, ParseError> {
     let c = source
-        .next()
+        .next_byte()
         .ok_or_else(|| ParseError::new("Unexpected EOF at start of record"))?;
     handler.on_record_start(source.pos() - 1);
 

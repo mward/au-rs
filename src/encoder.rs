@@ -1,5 +1,5 @@
 use crate::buffer::VectorBuffer;
-use crate::common::*;
+use crate::common::{AU_FORMAT_VERSION, MAX_METADATA_SIZE};
 use crate::string_intern::{InternMode, StringIntern, StringInternConfig};
 use crate::writer::{AuWriter, write_explicit_string, write_term};
 
@@ -83,7 +83,7 @@ impl AuEncoder {
     fn export_dict(&mut self) {
         let dict_len = self.string_intern.dict().len();
         if dict_len > self.last_dict_size {
-            let sor = self.dict_buf.tellp();
+            let sor = self.dict_buf.len();
             // `dict_buf` and `string_intern` are disjoint fields, so we can read the
             // interned strings while writing them out (as explicit, non-interned strings).
             self.dict_buf.put(b'A');
@@ -93,7 +93,7 @@ impl AuEncoder {
                 write_explicit_string(&mut self.dict_buf, s);
             }
             write_term(&mut self.dict_buf);
-            self.backref = self.dict_buf.tellp() - sor;
+            self.backref = self.dict_buf.len() - sor;
             self.last_dict_size = dict_len;
         }
     }
@@ -103,19 +103,19 @@ impl AuEncoder {
         W: FnOnce(&[u8], &[u8]) -> usize,
     {
         self.export_dict();
-        let sor = self.dict_buf.tellp();
+        let sor = self.dict_buf.len();
         {
             let mut af = AuWriter::new(&mut self.dict_buf, &mut self.string_intern);
             af.raw(b'V');
             af.backref(self.backref as u32);
-            af.value_int(self.buf.tellp() as u64);
+            af.value_int(self.buf.len() as u64);
         }
-        self.backref += self.dict_buf.tellp() - sor;
+        self.backref += self.dict_buf.len() - sor;
 
         let result = write(self.dict_buf.as_bytes(), self.buf.as_bytes());
 
         self.records += 1;
-        self.backref += self.buf.tellp();
+        self.backref += self.buf.len();
 
         self.buf.clear();
         self.dict_buf.clear();
@@ -146,11 +146,11 @@ impl AuEncoder {
         {
             let mut writer = AuWriter::new(&mut self.buf, &mut self.string_intern);
             f(&mut writer);
-            if writer.msg_buf_tellp() != 0 {
+            if writer.msg_buf_len() != 0 {
                 writer.term();
             }
         }
-        if self.buf.tellp() != 0 {
+        if !self.buf.is_empty() {
             self.finalize_and_write(write)
         } else {
             0
@@ -173,14 +173,14 @@ impl AuEncoder {
 
     fn emit_dict_clear(&mut self) {
         self.last_dict_size = 0;
-        let sor = self.dict_buf.tellp();
+        let sor = self.dict_buf.len();
         {
             let mut af = AuWriter::new(&mut self.dict_buf, &mut self.string_intern);
             af.raw(b'C');
             af.value_u32(AU_FORMAT_VERSION);
             af.term();
         }
-        self.backref = self.dict_buf.tellp() - sor;
+        self.backref = self.dict_buf.len() - sor;
     }
 }
 

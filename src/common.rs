@@ -23,7 +23,8 @@ pub enum Marker {
 }
 
 impl TryFrom<u8> for Marker {
-    type Error = ();
+    /// The invalid byte, when it does not correspond to a marker.
+    type Error = u8;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         use Marker::*;
@@ -44,7 +45,7 @@ impl TryFrom<u8> for Marker {
             0x0d => ObjectStart,
             0x0e => ObjectEnd,
             0x0f => RecordEnd,
-            _ => return Err(()),
+            _ => return Err(v),
         })
     }
 }

@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct ParseError {
-    pub message: String,
+    message: String,
 }
 
 impl ParseError {
@@ -10,6 +10,12 @@ impl ParseError {
         Self {
             message: msg.into(),
         }
+    }
+
+    /// The human-readable error message.
+    #[inline]
+    pub fn message(&self) -> &str {
+        &self.message
     }
 }
 

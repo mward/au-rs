@@ -36,8 +36,13 @@ impl VectorBuffer {
     }
 
     #[inline]
-    pub const fn tellp(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.v.len()
+    }
+
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.v.is_empty()
     }
 
     #[inline]

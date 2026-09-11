@@ -1,5 +1,5 @@
 use crate::buffer::VectorBuffer;
-use crate::common::*;
+use crate::common::{Marker, SMALL_INT_NEGATIVE, SMALL_INT_POSITIVE};
 use crate::string_intern::{InternMode, StringIntern};
 
 pub struct AuWriter<'a> {
@@ -17,8 +17,8 @@ impl<'a> AuWriter<'a> {
     }
 
     #[inline]
-    pub const fn msg_buf_tellp(&self) -> usize {
-        self.msg_buf.tellp()
+    pub const fn msg_buf_len(&self) -> usize {
+        self.msg_buf.len()
     }
 
     fn encode_string(&mut self, sv: &str) {

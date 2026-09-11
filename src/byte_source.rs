@@ -28,9 +28,8 @@ impl<'a> BufferByteSource<'a> {
     }
 
     /// Consume and return the next byte, or `None` at end of input.
-    #[allow(clippy::should_implement_trait)]
     #[inline]
-    pub fn next(&mut self) -> Option<u8> {
+    pub fn next_byte(&mut self) -> Option<u8> {
         let b = self.buf.get(self.pos).copied()?;
         self.pos += 1;
         Some(b)
