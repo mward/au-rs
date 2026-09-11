@@ -85,10 +85,8 @@ impl AuEncoder {
         if dict_len > self.last_dict_size {
             let sor = self.dict_buf.tellp();
             // We need to collect strings first to avoid borrow conflicts
-            let strings: Vec<String> = self.string_intern.dict()[self.last_dict_size..dict_len]
-                .iter()
-                .map(|s| s.clone())
-                .collect();
+            let strings: Vec<String> =
+                self.string_intern.dict()[self.last_dict_size..dict_len].to_vec();
 
             let mut af = AuWriter::new(&mut self.dict_buf, &mut self.string_intern);
             af.raw(b'A');
@@ -124,12 +122,12 @@ impl AuEncoder {
         self.buf.clear();
         self.dict_buf.clear();
 
-        if self.reindex_interval > 0 && (self.records % self.reindex_interval == 0) {
+        if self.reindex_interval > 0 && self.records.is_multiple_of(self.reindex_interval) {
             self.reindex_dictionary(self.purge_threshold);
         }
 
         if self.purge_interval > 0
-            && (self.records % self.purge_interval == 0)
+            && self.records.is_multiple_of(self.purge_interval)
             && self.last_dict_size > 0
         {
             self.purge_dictionary(self.purge_threshold);

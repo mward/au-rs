@@ -254,7 +254,7 @@ fn formatter_int() {
     }
     let expected: Vec<u8> = vec![
         // Small positives
-        SMALL_INT_POSITIVE | 0, // 0
+        SMALL_INT_POSITIVE, // 0
         Marker::Varint as u8,
         127, // 127
         Marker::Varint as u8,
@@ -427,7 +427,7 @@ fn formatter_intern_string() {
         writer.value_str_intern("aLongInternedString", InternMode::ForceIntern);
         writer.value_str_intern("another string", InternMode::ForceIntern);
     }
-    let expected: Vec<u8> = vec![0x80 | 0, 0x80 | 1];
+    let expected: Vec<u8> = vec![0x80, 0x80 | 1];
     assert_eq!(expected, buf.as_bytes());
 }
 
@@ -657,17 +657,17 @@ fn encoder_multi_record() {
     h.encode(|w| {
         w.map(|w| {
             w.kv_str("1st", "record");
-            w.kv_f64("key", 3.141);
+            w.kv_f64("key", 3.125);
         });
     });
     h.encode(|w| {
         w.map(|w| {
             w.kv_str("2nd", "record");
-            w.kv_f64("transcends", 2.71828);
+            w.kv_f64("transcends", 2.625);
         });
     });
     assert_eq!(
-        "{\"1st\":\"record\",\"key\":3.141}\n{\"2nd\":\"record\",\"transcends\":2.71828}",
+        "{\"1st\":\"record\",\"key\":3.125}\n{\"2nd\":\"record\",\"transcends\":2.625}",
         h.get_json()
     );
 }

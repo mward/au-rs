@@ -179,9 +179,7 @@ impl StringIntern {
 
     fn do_reindex(&mut self) {
         let mut tmp_dict: Vec<(usize, String)> = self
-            .dictionary
-            .iter()
-            .map(|(_, entry)| {
+            .dictionary.values().map(|entry| {
                 (
                     entry.occurrences,
                     self.dict_in_order[entry.intern_index].clone(),

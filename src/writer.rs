@@ -68,7 +68,7 @@ impl<'a> AuWriter<'a> {
     }
 
     pub fn value_i64(&mut self, i: i64) -> &mut Self {
-        if i >= 0 && i < 32 {
+        if (0..32).contains(&i) {
             self.msg_buf.put(SMALL_INT_POSITIVE | i as u8);
             return self;
         }

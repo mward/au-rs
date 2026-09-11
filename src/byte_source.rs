@@ -56,6 +56,7 @@ impl<'a> BufferByteSource<'a> {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Byte {
         if self.pos < self.buf.len() {
             let b = Byte::new(self.buf[self.pos]);
