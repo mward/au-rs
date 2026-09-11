@@ -111,6 +111,82 @@ fn bench_encode(c: &mut Criterion) {
     group.finish();
 }
 
+/// Encode `n` records whose string *values* are all distinct, so the frequency
+/// intern cache never promotes them and churns through evictions — the workload
+/// that stresses `UsageTracker`'s eviction path.
+fn encode_unique_values(n: usize) -> usize {
+    let mut enc = AuEncoder::new();
+    let mut sink = Vec::with_capacity(4096);
+    let mut total = 0usize;
+    for i in 0..n as u64 {
+        sink.clear();
+        let out = &mut sink;
+        enc.encode(
+            |w| {
+                w.map(|w| {
+                    w.kv_str("event", "order_update"); // stable key+value (interned)
+                    w.kv_str("id", &format!("uid-{i:012x}")); // unique every record
+                });
+            },
+            |a, b| {
+                out.extend_from_slice(a);
+                out.extend_from_slice(b);
+                a.len() + b.len()
+            },
+        );
+        total += sink.len();
+    }
+    total
+}
+
+fn bench_encode_high_cardinality(c: &mut Criterion) {
+    const N: usize = 20_000;
+    let mut group = c.benchmark_group("encode_high_cardinality");
+    group.throughput(Throughput::Elements(N as u64));
+    group.bench_function("unique_values_20000", |b| {
+        b.iter(|| black_box(encode_unique_values(black_box(N))));
+    });
+    group.finish();
+}
+
+/// Encode `n` records each with a distinct *long* key. Keys are force-interned,
+/// so each is created and stored in the dictionary — a high-churn workload of
+/// many long interned strings, unlike the few short reused ones elsewhere.
+fn encode_unique_long_keys(n: usize) -> usize {
+    let mut enc = AuEncoder::new();
+    let mut sink = Vec::with_capacity(4096);
+    let mut total = 0usize;
+    for i in 0..n as u64 {
+        sink.clear();
+        let out = &mut sink;
+        enc.encode(
+            |w| {
+                w.map(|w| {
+                    // ~48-byte unique key each record -> interned.
+                    w.kv_u64(&format!("long_descriptive_metric_field_name_number_{i:08}"), i);
+                });
+            },
+            |a, b| {
+                out.extend_from_slice(a);
+                out.extend_from_slice(b);
+                a.len() + b.len()
+            },
+        );
+        total += sink.len();
+    }
+    total
+}
+
+fn bench_encode_long_keys(c: &mut Criterion) {
+    const N: usize = 20_000;
+    let mut group = c.benchmark_group("encode_long_keys");
+    group.throughput(Throughput::Elements(N as u64));
+    group.bench_function("unique_long_keys_20000", |b| {
+        b.iter(|| black_box(encode_unique_long_keys(black_box(N))));
+    });
+    group.finish();
+}
+
 fn bench_decode(c: &mut Criterion) {
     const N: usize = 1000;
     let data = encode_to_vec(N);
@@ -131,5 +207,11 @@ fn bench_decode(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_encode, bench_decode);
+criterion_group!(
+    benches,
+    bench_encode,
+    bench_encode_high_cardinality,
+    bench_encode_long_keys,
+    bench_decode
+);
 criterion_main!(benches);

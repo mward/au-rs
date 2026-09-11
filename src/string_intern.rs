@@ -1,3 +1,4 @@
+use schnellru::{ByLength, LruMap};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,75 +26,63 @@ impl Default for StringInternConfig {
     }
 }
 
-/// Tracks how often a candidate string has been seen and where it sits in the
-/// insertion-ordered eviction list.
-struct CacheEntry {
-    count: usize,
-    order_index: usize,
-}
-
+/// Tracks how often a candidate string has been seen, evicting the
+/// oldest-inserted entries once the cache is full. Backed by a bounded map so
+/// lookups and evictions are O(1) and memory stays capped at the cache size (no
+/// accumulating tombstones). Eviction is insertion-order (FIFO): counting a
+/// string does not refresh its position, matching the prior windowing policy.
 struct UsageTracker {
     intern_thresh: usize,
-    intern_cache_size: usize,
-    /// Ordered list of recently seen strings (front = oldest)
-    in_order: Vec<String>,
-    dict: HashMap<String, CacheEntry>,
+    /// Maps candidate string -> times seen; capped at the cache size.
+    counts: LruMap<String, usize>,
 }
 
 impl UsageTracker {
     fn new(intern_thresh: usize, intern_cache_size: usize) -> Self {
+        // Fixed-seed hasher: this internal cache is not a HashDoS boundary, so
+        // we drop the randomized `runtime-rng` feature (and its getrandom dep).
+        const SEED: [u64; 4] = [
+            0x243f_6a88_85a3_08d3,
+            0x1319_8a2e_0370_7344,
+            0xa409_3822_299f_31d0,
+            0x082e_fa98_ec4e_6c89,
+        ];
+        // Saturate rather than wrap: a cache size >= 2^32 would otherwise
+        // truncate (and a value that wraps to 0 would disable interning).
+        let cap = u32::try_from(intern_cache_size).unwrap_or(u32::MAX);
         Self {
             intern_thresh,
-            intern_cache_size,
-            in_order: Vec::new(),
-            dict: HashMap::new(),
+            counts: LruMap::with_seed(ByLength::new(cap), SEED),
         }
     }
 
     fn should_intern(&mut self, sv: &str) -> bool {
-        if let Some(entry) = self.dict.get_mut(sv) {
-            if entry.count >= self.intern_thresh {
+        // `peek_mut` reads/updates the count without touching eviction order, so
+        // eviction stays FIFO (oldest-inserted), matching the prior behavior.
+        match self.counts.peek_mut(sv) {
+            Some(count) if *count >= self.intern_thresh => {
                 // Threshold reached: promote to the real dictionary and stop tracking.
-                let idx = entry.order_index;
-                self.dict.remove(sv);
-                // Mark slot as empty by clearing the string
-                if idx < self.in_order.len() {
-                    self.in_order[idx] = String::new();
-                }
-                return true;
+                self.counts.remove(sv);
+                true
             }
-            entry.count += 1;
-            return false;
+            Some(count) => {
+                *count += 1;
+                false
+            }
+            None => {
+                // Inserting at capacity evicts the oldest-inserted entry.
+                self.counts.insert(sv.to_string(), 1);
+                false
+            }
         }
-
-        // Evict the oldest non-empty entry if at capacity.
-        if self.dict.len() >= self.intern_cache_size
-            && let Some(i) = self.in_order.iter().position(|s| !s.is_empty())
-        {
-            let key = std::mem::take(&mut self.in_order[i]);
-            self.dict.remove(&key);
-        }
-
-        let order_index = self.in_order.len();
-        let s = sv.to_string();
-        self.dict.insert(
-            s.clone(),
-            CacheEntry {
-                count: 1,
-                order_index,
-            },
-        );
-        self.in_order.push(s);
-        false
     }
 
     fn clear(&mut self) {
-        self.dict.clear();
-        self.in_order.clear();
+        self.counts.clear();
     }
 
     fn size(&self) -> usize {
-        self.dict.len()
+        self.counts.len()
     }
 }
 

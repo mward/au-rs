@@ -65,10 +65,8 @@ impl<V: ValueHandler> RecordHandler for AuRecordHandler<'_, V> {
 
     fn on_string_start(&mut self, _sov: usize, len: usize) {
         self.str_buf.clear();
-        // `len` is attacker-controlled; a hostile record can declare a huge
-        // length. Pre-reserving is only an optimization (the actual bytes are
-        // bounds-checked when read), so tolerate an oversized request rather
-        // than aborting the process on a failed allocation.
+        // `len` is attacker-controlled and only a capacity hint here (the bytes
+        // are bounds-checked on read), so never abort on an oversized request.
         let _ = self.str_buf.try_reserve(len);
     }
 
