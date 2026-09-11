@@ -1,4 +1,5 @@
 use schnellru::{ByLength, LruMap};
+use arcstr::ArcStr;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,8 +93,8 @@ struct InternEntry {
 }
 
 pub struct StringIntern {
-    dict_in_order: Vec<String>,
-    dictionary: HashMap<String, InternEntry>,
+    dict_in_order: Vec<ArcStr>,
+    dictionary: HashMap<ArcStr, InternEntry>,
     tiny_string_size: usize,
     intern_cache: UsageTracker,
 }
@@ -130,7 +131,9 @@ impl StringIntern {
 
         if intern == InternMode::ForceIntern || self.intern_cache.should_intern(sv) {
             let next_entry = self.dict_in_order.len();
-            let s = sv.to_string();
+            // `ArcStr` clone is a refcount bump, so keying the map and the index
+            // vec by the same string allocates once (and each slot is 8 bytes).
+            let s = ArcStr::from(sv);
             self.dictionary.insert(
                 s.clone(),
                 InternEntry {
@@ -145,7 +148,7 @@ impl StringIntern {
     }
 
     #[must_use]
-    pub fn dict(&self) -> &[String] {
+    pub fn dict(&self) -> &[ArcStr] {
         &self.dict_in_order
     }
 
@@ -177,7 +180,7 @@ impl StringIntern {
     }
 
     fn do_reindex(&mut self) {
-        let mut tmp_dict: Vec<(usize, String)> = self
+        let mut tmp_dict: Vec<(usize, ArcStr)> = self
             .dictionary
             .values()
             .map(|entry| {

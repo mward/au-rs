@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+arcstr = "1.2.0"
 # default features off to drop the getrandom-backed `runtime-rng`; the internal
 # frequency cache does not need HashDoS-resistant seeding.
 schnellru = { version = "0.2.4", default-features = false }
