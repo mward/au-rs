@@ -375,6 +375,15 @@ pub fn parse_stream<H: RecordHandler>(
 }
 
 fn check_header(source: &mut BufferByteSource) -> Result<(), ParseError> {
+    struct HeaderCheck {
+        header_seen: bool,
+    }
+    impl RecordHandler for HeaderCheck {
+        fn on_header(&mut self, _version: u64, _metadata: &str) {
+            self.header_seen = true;
+        }
+    }
+
     match source.peek() {
         None => return Ok(()),
         Some(b) if b != b'H' => {
@@ -383,15 +392,6 @@ fn check_header(source: &mut BufferByteSource) -> Result<(), ParseError> {
             ));
         }
         Some(_) => {}
-    }
-
-    struct HeaderCheck {
-        header_seen: bool,
-    }
-    impl RecordHandler for HeaderCheck {
-        fn on_header(&mut self, _version: u64, _metadata: &str) {
-            self.header_seen = true;
-        }
     }
 
     let mut hh = HeaderCheck { header_seen: false };

@@ -3,12 +3,10 @@ name = "au"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-
 [dev-dependencies]
-serde_json = { version = "1", features = ["preserve_order"] }
-proptest = "1.11.0"
 criterion = "0.8.2"
+proptest = "1.11.0"
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
 
 [[bench]]
 name = "au_bench"
@@ -18,7 +16,8 @@ harness = false
 unsafe_code = "forbid"
 
 [lints.clippy]
+items_after_statements = "warn"
 missing_const_for_fn = "warn"
-use_self = "warn"
-uninlined_format_args = "warn"
 redundant_else = "warn"
+uninlined_format_args = "warn"
+use_self = "warn"

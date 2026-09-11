@@ -76,6 +76,8 @@ impl ValueHandler for CountingValueHandler {
 }
 
 fn bench_encode(c: &mut Criterion) {
+    // Full cold pipeline: fresh encoder + output buffer for 1000 records.
+    const N: usize = 1000;
     let mut group = c.benchmark_group("encode");
 
     // Streaming, amortized per-record encode: one long-lived encoder whose
@@ -101,8 +103,6 @@ fn bench_encode(c: &mut Criterion) {
         });
     });
 
-    // Full cold pipeline: fresh encoder + output buffer for 1000 records.
-    const N: usize = 1000;
     group.throughput(Throughput::Elements(N as u64));
     group.bench_function("1000_records", |b| {
         b.iter(|| black_box(encode_to_vec(black_box(N)).len()));
