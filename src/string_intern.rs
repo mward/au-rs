@@ -110,10 +110,12 @@ pub struct StringIntern {
 }
 
 impl StringIntern {
+    #[must_use]
     pub fn new() -> Self {
         Self::with_config(StringInternConfig::default())
     }
 
+    #[must_use]
     pub fn with_config(config: StringInternConfig) -> Self {
         let reserve_size = (config.clear_threshold as f64 * 1.2) as usize;
         Self {
@@ -153,6 +155,7 @@ impl StringIntern {
         None
     }
 
+    #[must_use]
     pub fn dict(&self) -> &[String] {
         &self.dict_in_order
     }
@@ -213,6 +216,7 @@ impl StringIntern {
         }
     }
 
+    #[must_use]
     pub fn get_stats(&self) -> InternStats {
         InternStats {
             hash_size: self.dictionary.len(),

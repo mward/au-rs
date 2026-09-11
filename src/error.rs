@@ -6,6 +6,7 @@ pub struct ParseError {
 }
 
 impl ParseError {
+    #[must_use]
     pub fn new(msg: impl Into<String>) -> Self {
         Self {
             message: msg.into(),
@@ -14,6 +15,7 @@ impl ParseError {
 
     /// The human-readable error message.
     #[inline]
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }

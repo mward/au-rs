@@ -7,6 +7,7 @@ pub struct Dict {
 }
 
 impl Dict {
+    #[must_use]
     pub fn new(start_pos: usize) -> Self {
         Self {
             dictionary: Vec::with_capacity(1 << 16),
@@ -26,6 +27,7 @@ impl Dict {
         self.last_dict_pos = sor;
     }
 
+    #[must_use]
     pub const fn includes(&self, sor: usize) -> bool {
         self.start_pos <= sor && sor <= self.last_dict_pos
     }
@@ -44,6 +46,7 @@ impl Dict {
         Ok(&self.dictionary[idx])
     }
 
+    #[must_use]
     pub const fn size(&self) -> usize {
         self.dictionary.len()
     }
@@ -55,10 +58,12 @@ pub struct Dictionary {
 }
 
 impl Dictionary {
+    #[must_use]
     pub fn new() -> Self {
         Self::with_max_dicts(1)
     }
 
+    #[must_use]
     pub fn with_max_dicts(max_dicts: usize) -> Self {
         Self {
             dictionaries: Vec::with_capacity(max_dicts),

@@ -7,22 +7,26 @@ pub struct BufferByteSource<'a> {
 
 impl<'a> BufferByteSource<'a> {
     #[inline]
+    #[must_use]
     pub const fn new(buf: &'a [u8]) -> Self {
         BufferByteSource { buf, pos: 0 }
     }
 
     #[inline]
+    #[must_use]
     pub const fn pos(&self) -> usize {
         self.pos
     }
 
     #[inline]
+    #[must_use]
     pub const fn end_pos(&self) -> usize {
         self.buf.len()
     }
 
     /// Return the next byte without consuming it, or `None` at end of input.
     #[inline]
+    #[must_use]
     pub fn peek(&self) -> Option<u8> {
         self.buf.get(self.pos).copied()
     }

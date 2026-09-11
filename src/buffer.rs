@@ -2,15 +2,18 @@
 ///
 /// Thin wrapper over `Vec<u8>`; `clear` retains the allocation so the buffer can
 /// be reused across records without reallocating.
+#[repr(transparent)]
 pub struct VectorBuffer {
     v: Vec<u8>,
 }
 
 impl VectorBuffer {
+    #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(1024 * 1024)
     }
 
+    #[must_use]
     pub fn with_capacity(size: usize) -> Self {
         Self {
             v: Vec::with_capacity(size),
@@ -36,16 +39,19 @@ impl VectorBuffer {
     }
 
     #[inline]
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.v.len()
     }
 
     #[inline]
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.v.is_empty()
     }
 
     #[inline]
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         &self.v
     }

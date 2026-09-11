@@ -9,6 +9,7 @@ pub struct AuWriter<'a> {
 
 impl<'a> AuWriter<'a> {
     #[inline]
+    #[must_use]
     pub const fn new(buf: &'a mut VectorBuffer, string_intern: &'a mut StringIntern) -> Self {
         AuWriter {
             msg_buf: buf,
@@ -17,6 +18,7 @@ impl<'a> AuWriter<'a> {
     }
 
     #[inline]
+    #[must_use]
     pub const fn msg_buf_len(&self) -> usize {
         self.msg_buf.len()
     }

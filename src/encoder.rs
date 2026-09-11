@@ -17,14 +17,17 @@ pub struct AuEncoder {
 }
 
 impl AuEncoder {
+    #[must_use]
     pub fn new() -> Self {
         Self::with_options(String::new(), 250_000, 50, 500_000)
     }
 
+    #[must_use]
     pub fn with_metadata(metadata: String) -> Self {
         Self::with_options(metadata, 250_000, 50, 500_000)
     }
 
+    #[must_use]
     pub fn with_options(
         metadata: String,
         purge_interval: usize,
@@ -40,6 +43,7 @@ impl AuEncoder {
         )
     }
 
+    #[must_use]
     pub fn with_full_options(
         mut metadata: String,
         purge_interval: usize,
