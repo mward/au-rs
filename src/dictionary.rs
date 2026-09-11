@@ -64,10 +64,8 @@ impl Dictionary {
     }
 
     pub fn clear(&mut self, sor: usize) -> &mut Dict {
-        for i in 0..self.dictionaries.len() {
-            if self.dictionaries[i].start_pos == sor {
-                return &mut self.dictionaries[i];
-            }
+        if let Some(idx) = self.dictionaries.iter().position(|d| d.start_pos == sor) {
+            return &mut self.dictionaries[idx];
         }
 
         if self.dictionaries.len() == self.max_dicts {
@@ -82,10 +80,8 @@ impl Dictionary {
 
     pub fn find_dictionary_ref(&self, sor: usize, rel_dict_pos: usize) -> Result<&Dict, ParseError> {
         let pos = sor - rel_dict_pos;
-        for i in (0..self.dictionaries.len()).rev() {
-            if self.dictionaries[i].includes(pos) {
-                return Ok(&self.dictionaries[i]);
-            }
+        if let Some(dict) = self.dictionaries.iter().rev().find(|d| d.includes(pos)) {
+            return Ok(dict);
         }
         Err(ParseError::new(format!(
             "wrong backref: no dictionary includes absolute position = {}: \
@@ -96,10 +92,8 @@ impl Dictionary {
 
     pub fn find_dictionary(&mut self, sor: usize, rel_dict_pos: usize) -> Result<&mut Dict, ParseError> {
         let pos = sor - rel_dict_pos;
-        for i in (0..self.dictionaries.len()).rev() {
-            if self.dictionaries[i].includes(pos) {
-                return Ok(&mut self.dictionaries[i]);
-            }
+        if let Some(idx) = self.dictionaries.iter().rposition(|d| d.includes(pos)) {
+            return Ok(&mut self.dictionaries[idx]);
         }
         Err(ParseError::new(format!(
             "wrong backref: no dictionary includes absolute position = {}: \

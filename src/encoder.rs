@@ -1,7 +1,7 @@
 use crate::buffer::VectorBuffer;
 use crate::common::*;
 use crate::string_intern::{InternMode, StringIntern, StringInternConfig};
-use crate::writer::AuWriter;
+use crate::writer::{write_explicit_string, write_term, AuWriter};
 
 pub struct AuEncoder {
     string_intern: StringIntern,
@@ -84,17 +84,14 @@ impl AuEncoder {
         let dict_len = self.string_intern.dict().len();
         if dict_len > self.last_dict_size {
             let sor = self.dict_buf.tellp();
-            // We need to collect strings first to avoid borrow conflicts
-            let strings: Vec<String> =
-                self.string_intern.dict()[self.last_dict_size..dict_len].to_vec();
-
-            let mut af = AuWriter::new(&mut self.dict_buf, &mut self.string_intern);
-            af.raw(b'A');
-            af.backref(self.backref as u32);
-            for s in &strings {
-                af.value_str_intern(s, InternMode::ForceExplicit);
+            // `dict_buf` and `string_intern` are disjoint fields, so we can read the
+            // interned strings while writing them out (as explicit, non-interned strings).
+            self.dict_buf.put(b'A');
+            self.dict_buf.write_bytes(&(self.backref as u32).to_le_bytes());
+            for s in &self.string_intern.dict()[self.last_dict_size..dict_len] {
+                write_explicit_string(&mut self.dict_buf, s);
             }
-            af.term();
+            write_term(&mut self.dict_buf);
             self.backref = self.dict_buf.tellp() - sor;
             self.last_dict_size = dict_len;
         }

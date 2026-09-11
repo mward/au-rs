@@ -1,35 +1,5 @@
 use crate::error::ParseError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Byte {
-    value: i16,
-}
-
-impl Byte {
-    pub fn new(c: u8) -> Self {
-        Byte { value: c as i16 }
-    }
-
-    pub fn eof() -> Self {
-        Byte { value: -1 }
-    }
-
-    pub fn is_eof(&self) -> bool {
-        self.value == -1
-    }
-
-    pub fn value(&self) -> u8 {
-        assert!(!self.is_eof(), "Tried to get value of eof");
-        self.value as u8
-    }
-}
-
-impl PartialEq<u8> for Byte {
-    fn eq(&self, other: &u8) -> bool {
-        self.value == *other as i16
-    }
-}
-
 pub struct BufferByteSource<'a> {
     buf: &'a [u8],
     pos: usize,
@@ -48,23 +18,17 @@ impl<'a> BufferByteSource<'a> {
         self.buf.len()
     }
 
-    pub fn peek(&self) -> Byte {
-        if self.pos < self.buf.len() {
-            Byte::new(self.buf[self.pos])
-        } else {
-            Byte::eof()
-        }
+    /// Return the next byte without consuming it, or `None` at end of input.
+    pub fn peek(&self) -> Option<u8> {
+        self.buf.get(self.pos).copied()
     }
 
+    /// Consume and return the next byte, or `None` at end of input.
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Byte {
-        if self.pos < self.buf.len() {
-            let b = Byte::new(self.buf[self.pos]);
-            self.pos += 1;
-            b
-        } else {
-            Byte::eof()
-        }
+    pub fn next(&mut self) -> Option<u8> {
+        let b = self.buf.get(self.pos).copied()?;
+        self.pos += 1;
+        Some(b)
     }
 
     pub fn read_bytes(&mut self, len: usize) -> Result<&'a [u8], ParseError> {

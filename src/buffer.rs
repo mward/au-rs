@@ -1,6 +1,9 @@
+/// A growable output buffer for encoded bytes.
+///
+/// Thin wrapper over `Vec<u8>`; `clear` retains the allocation so the buffer can
+/// be reused across records without reallocating.
 pub struct VectorBuffer {
     v: Vec<u8>,
-    idx: usize,
 }
 
 impl VectorBuffer {
@@ -10,46 +13,35 @@ impl VectorBuffer {
 
     pub fn with_capacity(size: usize) -> Self {
         VectorBuffer {
-            v: vec![0u8; size],
-            idx: 0,
+            v: Vec::with_capacity(size),
         }
     }
 
     pub fn put(&mut self, c: u8) {
-        if self.idx == self.v.len() {
-            self.v.resize(self.v.len() * 2, 0);
-        }
-        self.v[self.idx] = c;
-        self.idx += 1;
+        self.v.push(c);
     }
 
+    /// Reserve `size` zeroed bytes at the end and return them for in-place writing.
     pub fn raw(&mut self, size: usize) -> &mut [u8] {
-        if self.idx + size > self.v.len() {
-            let new_size = std::cmp::max(self.v.len() * 2, self.idx + size);
-            self.v.resize(new_size, 0);
-        }
-        let front = self.idx;
-        self.idx += size;
-        &mut self.v[front..front + size]
+        let start = self.v.len();
+        self.v.resize(start + size, 0);
+        &mut self.v[start..]
     }
 
     pub fn write_bytes(&mut self, data: &[u8]) {
-        if !data.is_empty() {
-            let dest = self.raw(data.len());
-            dest.copy_from_slice(data);
-        }
+        self.v.extend_from_slice(data);
     }
 
     pub fn tellp(&self) -> usize {
-        self.idx
+        self.v.len()
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        &self.v[..self.idx]
+        &self.v
     }
 
     pub fn clear(&mut self) {
-        self.idx = 0;
+        self.v.clear();
     }
 }
 

@@ -20,15 +20,7 @@ impl<'a> AuWriter<'a> {
     }
 
     fn encode_string(&mut self, sv: &str) {
-        const MAX_INLINE_STRING_SIZE: usize = 31;
-        let bytes = sv.as_bytes();
-        if bytes.len() <= MAX_INLINE_STRING_SIZE {
-            self.msg_buf.put(0x20 | bytes.len() as u8);
-        } else {
-            self.msg_buf.put(Marker::String as u8);
-            self.value_int(bytes.len() as u64);
-        }
-        self.msg_buf.write_bytes(bytes);
+        write_explicit_string(self.msg_buf, sv);
     }
 
     fn encode_string_intern(&mut self, sv: &str, intern: InternMode) {
@@ -77,12 +69,8 @@ impl<'a> AuWriter<'a> {
             return self;
         }
         let neg = i < 0;
-        // Handle i64::MIN carefully to avoid overflow
-        let val: u64 = if i < 0 {
-            (-(i + 1)) as u64 + 1
-        } else {
-            i as u64
-        };
+        // `unsigned_abs` yields the magnitude and handles i64::MIN without overflow.
+        let val: u64 = i.unsigned_abs();
         if val >= 1u64 << 48 {
             self.msg_buf
                 .put(if neg { Marker::NegInt64 as u8 } else { Marker::PosInt64 as u8 });
@@ -210,64 +198,44 @@ impl<'a> AuWriter<'a> {
         self.msg_buf.write_bytes(&val.to_le_bytes());
     }
 
-    pub(crate) fn value_int(&mut self, mut i: u64) {
-        if i < 1 << 7 {
-            self.msg_buf.put(i as u8);
-        } else if i < 1 << 14 {
-            let buf = self.msg_buf.raw(2);
-            buf[0] = (i & 0x7f | 0x80) as u8;
-            buf[1] = (i >> 7) as u8;
-        } else if i < 1 << 21 {
-            let buf = self.msg_buf.raw(3);
-            buf[0] = (i & 0x7f | 0x80) as u8;
-            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
-            buf[2] = (i >> 14) as u8;
-        } else if i < 1 << 28 {
-            let buf = self.msg_buf.raw(4);
-            buf[0] = (i & 0x7f | 0x80) as u8;
-            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
-            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
-            buf[3] = (i >> 21) as u8;
-        } else if i < 1 << 35 {
-            let buf = self.msg_buf.raw(5);
-            buf[0] = (i & 0x7f | 0x80) as u8;
-            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
-            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
-            buf[3] = ((i >> 21) & 0x7f | 0x80) as u8;
-            buf[4] = (i >> 28) as u8;
-        } else if i < 1 << 42 {
-            let buf = self.msg_buf.raw(6);
-            buf[0] = (i & 0x7f | 0x80) as u8;
-            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
-            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
-            buf[3] = ((i >> 21) & 0x7f | 0x80) as u8;
-            buf[4] = ((i >> 28) & 0x7f | 0x80) as u8;
-            buf[5] = (i >> 35) as u8;
-        } else if i < 1 << 49 {
-            let buf = self.msg_buf.raw(7);
-            buf[0] = (i & 0x7f | 0x80) as u8;
-            buf[1] = ((i >> 7) & 0x7f | 0x80) as u8;
-            buf[2] = ((i >> 14) & 0x7f | 0x80) as u8;
-            buf[3] = ((i >> 21) & 0x7f | 0x80) as u8;
-            buf[4] = ((i >> 28) & 0x7f | 0x80) as u8;
-            buf[5] = ((i >> 35) & 0x7f | 0x80) as u8;
-            buf[6] = (i >> 42) as u8;
-        } else {
-            loop {
-                let to_write = (i & 0x7f) as u8;
-                i >>= 7;
-                if i != 0 {
-                    self.msg_buf.put(to_write | 0x80);
-                } else {
-                    self.msg_buf.put(to_write);
-                    break;
-                }
-            }
-        }
+    pub(crate) fn value_int(&mut self, i: u64) {
+        write_varint(self.msg_buf, i);
     }
 
     pub(crate) fn term(&mut self) {
-        self.msg_buf.put(Marker::RecordEnd as u8);
-        self.msg_buf.put(b'\n');
+        write_term(self.msg_buf);
     }
+}
+
+/// Encode `i` as a little-endian base-128 varint into `buf`.
+pub(crate) fn write_varint(buf: &mut VectorBuffer, mut i: u64) {
+    loop {
+        let to_write = (i & 0x7f) as u8;
+        i >>= 7;
+        if i != 0 {
+            buf.put(to_write | 0x80);
+        } else {
+            buf.put(to_write);
+            break;
+        }
+    }
+}
+
+/// Encode `sv` as an explicit (non-interned) string into `buf`.
+pub(crate) fn write_explicit_string(buf: &mut VectorBuffer, sv: &str) {
+    const MAX_INLINE_STRING_SIZE: usize = 31;
+    let bytes = sv.as_bytes();
+    if bytes.len() <= MAX_INLINE_STRING_SIZE {
+        buf.put(0x20 | bytes.len() as u8);
+    } else {
+        buf.put(Marker::String as u8);
+        write_varint(buf, bytes.len() as u64);
+    }
+    buf.write_bytes(bytes);
+}
+
+/// Write the record terminator (record-end marker + newline) into `buf`.
+pub(crate) fn write_term(buf: &mut VectorBuffer) {
+    buf.put(Marker::RecordEnd as u8);
+    buf.put(b'\n');
 }

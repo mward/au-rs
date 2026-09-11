@@ -22,5 +22,32 @@ pub enum Marker {
     RecordEnd = 0x0f,
 }
 
+impl TryFrom<u8> for Marker {
+    type Error = ();
+
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        use Marker::*;
+        Ok(match v {
+            0x00 => Null,
+            0x01 => True,
+            0x02 => False,
+            0x03 => Double,
+            0x04 => Timestamp,
+            0x05 => String,
+            0x06 => Varint,
+            0x07 => NegVarint,
+            0x08 => PosInt64,
+            0x09 => NegInt64,
+            0x0a => DictRef,
+            0x0b => ArrayStart,
+            0x0c => ArrayEnd,
+            0x0d => ObjectStart,
+            0x0e => ObjectEnd,
+            0x0f => RecordEnd,
+            _ => return Err(()),
+        })
+    }
+}
+
 pub const SMALL_INT_POSITIVE: u8 = 0x60;
 pub const SMALL_INT_NEGATIVE: u8 = 0x40;

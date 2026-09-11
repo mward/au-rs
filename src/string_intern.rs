@@ -25,13 +25,19 @@ impl Default for StringInternConfig {
     }
 }
 
+/// Tracks how often a candidate string has been seen and where it sits in the
+/// insertion-ordered eviction list.
+struct CacheEntry {
+    count: usize,
+    order_index: usize,
+}
+
 struct UsageTracker {
     intern_thresh: usize,
     intern_cache_size: usize,
     /// Ordered list of recently seen strings (front = oldest)
     in_order: Vec<String>,
-    /// Maps string -> (count, index_in_in_order)
-    dict: HashMap<String, (usize, usize)>,
+    dict: HashMap<String, CacheEntry>,
 }
 
 impl UsageTracker {
@@ -46,9 +52,9 @@ impl UsageTracker {
 
     fn should_intern(&mut self, sv: &str) -> bool {
         if let Some(entry) = self.dict.get_mut(sv) {
-            if entry.0 >= self.intern_thresh {
-                // Remove from tracking
-                let idx = entry.1;
+            if entry.count >= self.intern_thresh {
+                // Threshold reached: promote to the real dictionary and stop tracking.
+                let idx = entry.order_index;
                 self.dict.remove(sv);
                 // Mark slot as empty by clearing the string
                 if idx < self.in_order.len() {
@@ -56,26 +62,22 @@ impl UsageTracker {
                 }
                 return true;
             } else {
-                entry.0 += 1;
+                entry.count += 1;
                 return false;
             }
         }
 
-        // Evict oldest if at capacity
-        if self.dict.len() >= self.intern_cache_size {
-            // Find the oldest non-empty entry
-            for i in 0..self.in_order.len() {
-                if !self.in_order[i].is_empty() {
-                    let key = std::mem::take(&mut self.in_order[i]);
-                    self.dict.remove(&key);
-                    break;
-                }
-            }
+        // Evict the oldest non-empty entry if at capacity.
+        if self.dict.len() >= self.intern_cache_size
+            && let Some(i) = self.in_order.iter().position(|s| !s.is_empty())
+        {
+            let key = std::mem::take(&mut self.in_order[i]);
+            self.dict.remove(&key);
         }
 
-        let idx = self.in_order.len();
+        let order_index = self.in_order.len();
         let s = sv.to_string();
-        self.dict.insert(s.clone(), (1, idx));
+        self.dict.insert(s.clone(), CacheEntry { count: 1, order_index });
         self.in_order.push(s);
         false
     }
@@ -204,13 +206,21 @@ impl StringIntern {
         }
     }
 
-    pub fn get_stats(&self) -> HashMap<String, usize> {
-        let mut stats = HashMap::new();
-        stats.insert("HashSize".to_string(), self.dictionary.len());
-        stats.insert("DictSize".to_string(), self.dict_in_order.len());
-        stats.insert("CacheSize".to_string(), self.intern_cache.size());
-        stats
+    pub fn get_stats(&self) -> InternStats {
+        InternStats {
+            hash_size: self.dictionary.len(),
+            dict_size: self.dict_in_order.len(),
+            cache_size: self.intern_cache.size(),
+        }
     }
+}
+
+/// Snapshot of a `StringIntern`'s internal sizes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InternStats {
+    pub hash_size: usize,
+    pub dict_size: usize,
+    pub cache_size: usize,
 }
 
 impl Default for StringIntern {
