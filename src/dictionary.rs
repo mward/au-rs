@@ -8,7 +8,7 @@ pub struct Dict {
 
 impl Dict {
     pub fn new(start_pos: usize) -> Self {
-        Dict {
+        Self {
             dictionary: Vec::with_capacity(1 << 16),
             start_pos,
             last_dict_pos: start_pos,
@@ -60,7 +60,7 @@ impl Dictionary {
     }
 
     pub fn with_max_dicts(max_dicts: usize) -> Self {
-        Dictionary {
+        Self {
             dictionaries: Vec::with_capacity(max_dicts),
             max_dicts,
         }
@@ -91,9 +91,8 @@ impl Dictionary {
             return Ok(dict);
         }
         Err(ParseError::new(format!(
-            "wrong backref: no dictionary includes absolute position = {}: \
-             start-of-record = {} relDictPos = {}",
-            pos, sor, rel_dict_pos
+            "wrong backref: no dictionary includes absolute position = {pos}: \
+             start-of-record = {sor} relDictPos = {rel_dict_pos}"
         )))
     }
 
@@ -107,9 +106,8 @@ impl Dictionary {
             return Ok(&mut self.dictionaries[idx]);
         }
         Err(ParseError::new(format!(
-            "wrong backref: no dictionary includes absolute position = {}: \
-             start-of-record = {} relDictPos = {}",
-            pos, sor, rel_dict_pos
+            "wrong backref: no dictionary includes absolute position = {pos}: \
+             start-of-record = {sor} relDictPos = {rel_dict_pos}"
         )))
     }
 

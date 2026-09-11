@@ -16,7 +16,7 @@ pub struct StringInternConfig {
 
 impl Default for StringInternConfig {
     fn default() -> Self {
-        StringInternConfig {
+        Self {
             tiny_str: 4,
             intern_thresh: 10,
             intern_cache_size: 1000,
@@ -42,7 +42,7 @@ struct UsageTracker {
 
 impl UsageTracker {
     fn new(intern_thresh: usize, intern_cache_size: usize) -> Self {
-        UsageTracker {
+        Self {
             intern_thresh,
             intern_cache_size,
             in_order: Vec::new(),
@@ -61,10 +61,9 @@ impl UsageTracker {
                     self.in_order[idx] = String::new();
                 }
                 return true;
-            } else {
-                entry.count += 1;
-                return false;
             }
+            entry.count += 1;
+            return false;
         }
 
         // Evict the oldest non-empty entry if at capacity.
@@ -117,7 +116,7 @@ impl StringIntern {
 
     pub fn with_config(config: StringInternConfig) -> Self {
         let reserve_size = (config.clear_threshold as f64 * 1.2) as usize;
-        StringIntern {
+        Self {
             dict_in_order: Vec::with_capacity(reserve_size),
             dictionary: HashMap::with_capacity(reserve_size),
             tiny_string_size: config.tiny_str,

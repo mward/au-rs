@@ -7,7 +7,7 @@ pub struct ParseError {
 
 impl ParseError {
     pub fn new(msg: impl Into<String>) -> Self {
-        ParseError {
+        Self {
             message: msg.into(),
         }
     }

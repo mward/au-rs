@@ -155,7 +155,7 @@ impl<'a> AuWriter<'a> {
         self.encode_string_intern(k, InternMode::ForceIntern);
     }
 
-    // Convenience: write a map with key-value pairs via closure
+    /// Convenience: write a map with key-value pairs via closure
     pub fn map(&mut self, f: impl FnOnce(&mut AuWriter)) -> &mut Self {
         self.msg_buf.put(Marker::ObjectStart as u8);
         f(self);
@@ -163,7 +163,7 @@ impl<'a> AuWriter<'a> {
         self
     }
 
-    // Convenience: write an array with values via closure
+    /// Convenience: write an array with values via closure
     pub fn array(&mut self, f: impl FnOnce(&mut AuWriter)) -> &mut Self {
         self.msg_buf.put(Marker::ArrayStart as u8);
         f(self);

@@ -36,7 +36,7 @@ enum BuildState {
 
 impl JsonOutputHandler {
     pub const fn new() -> Self {
-        JsonOutputHandler {
+        Self {
             stack: Vec::new(),
             result: None,
         }
@@ -92,10 +92,7 @@ impl JsonOutputHandler {
         let m = if mp < 10 { mp + 3 } else { mp - 9 };
         let y = if m <= 2 { y + 1 } else { y };
 
-        format!(
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:09}",
-            y, m, d, hour, min, sec, frac
-        )
+        format!("{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}.{frac:09}")
     }
 }
 
@@ -169,7 +166,7 @@ impl ValueHandler for JsonOutputHandler {
     fn on_dict_ref(&mut self, _pos: usize, _dict_idx: usize) {
         // Dict refs are resolved by the DictValueHandler wrapper before reaching here
         // If we get here directly, it means no dictionary context is available
-        self.push_value(JsonValue::String(format!("<dictref:{}>", _dict_idx)));
+        self.push_value(JsonValue::String(format!("<dictref:{_dict_idx}>")));
     }
 
     fn on_string_start(&mut self, _sov: usize, _length: usize) {}
@@ -187,7 +184,7 @@ pub struct StringCollectingJsonHandler {
 
 impl StringCollectingJsonHandler {
     pub const fn new() -> Self {
-        StringCollectingJsonHandler {
+        Self {
             inner: JsonOutputHandler::new(),
             str_buf: Vec::new(),
         }
@@ -265,7 +262,7 @@ pub struct EncoderTestHarness {
 
 impl EncoderTestHarness {
     pub fn new() -> Self {
-        EncoderTestHarness {
+        Self {
             encoder: AuEncoder::new(),
             storage: Vec::new(),
         }
@@ -310,7 +307,7 @@ pub struct MultiValueJsonHandler {
 
 impl MultiValueJsonHandler {
     pub const fn new() -> Self {
-        MultiValueJsonHandler {
+        Self {
             inner: StringCollectingJsonHandler::new(),
             results: Vec::new(),
         }

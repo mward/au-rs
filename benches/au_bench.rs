@@ -12,7 +12,8 @@ use au::encoder::AuEncoder;
 use au::handler::ValueHandler;
 use au::record_handler::AuRecordHandler;
 use au::writer::AuWriter;
-use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use std::hint::black_box;
 
 /// A representative record: a mixed object with repeated keys (so interning and
 /// dictionary backrefs come into play) plus a small nested array.

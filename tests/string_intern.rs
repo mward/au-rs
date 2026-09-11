@@ -41,10 +41,9 @@ fn string_intern_frequent_strings() {
         if i < INTERN_THRESH - 1 {
             assert!(
                 si.idx(str_val, InternMode::ByFrequency).is_none(),
-                "i = {}",
-                i
+                "i = {i}"
             );
-            assert_eq!(0, si.dict().len(), "i = {}", i);
+            assert_eq!(0, si.dict().len(), "i = {i}");
         } else {
             assert!(si.idx(str_val, InternMode::ByFrequency).is_some());
             assert_eq!(1, si.dict().len());

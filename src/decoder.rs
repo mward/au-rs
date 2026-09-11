@@ -8,11 +8,10 @@ const MAX_DEPTH: usize = 2048;
 fn expect(source: &mut BufferByteSource, expected: u8) -> Result<(), ParseError> {
     let c = source
         .next()
-        .ok_or_else(|| ParseError::new(format!("Unexpected EOF, expected 0x{:02x}", expected)))?;
+        .ok_or_else(|| ParseError::new(format!("Unexpected EOF, expected 0x{expected:02x}")))?;
     if c != expected {
         return Err(ParseError::new(format!(
-            "Unexpected character: 0x{:02x}, expected 0x{:02x}",
-            c, expected
+            "Unexpected character: 0x{c:02x}, expected 0x{expected:02x}"
         )));
     }
     Ok(())
@@ -66,8 +65,7 @@ fn parse_format_version(source: &mut BufferByteSource) -> Result<u64, ParseError
 
     if version != AU_FORMAT_VERSION as u64 {
         return Err(ParseError::new(format!(
-            "Bad format version: expected {}, got {}",
-            AU_FORMAT_VERSION, version
+            "Bad format version: expected {AU_FORMAT_VERSION}, got {version}"
         )));
     }
     Ok(version)
@@ -103,8 +101,7 @@ fn parse_string_length(source: &mut BufferByteSource, tag: u8) -> Result<usize, 
         Ok(read_varint(source)? as usize)
     } else {
         Err(ParseError::new(format!(
-            "Expected a string, got 0x{:02x}",
-            tag
+            "Expected a string, got 0x{tag:02x}"
         )))
     }
 }
@@ -176,8 +173,7 @@ pub fn parse_value<H: ValueHandler>(
             let neg_int_limit: u64 = (i64::MAX as u64) + 1;
             if v > neg_int_limit {
                 return Err(ParseError::new(format!(
-                    "Signed int overflows i64: (-){} 0x{:016x}",
-                    v, v
+                    "Signed int overflows i64: (-){v} 0x{v:016x}"
                 )));
             }
             handler.on_int(sov, -(v as i64));
@@ -191,8 +187,7 @@ pub fn parse_value<H: ValueHandler>(
             let neg_int_limit: u64 = (i64::MAX as u64) + 1;
             if val > neg_int_limit {
                 return Err(ParseError::new(format!(
-                    "Signed int overflows i64: (-){} 0x{:016x}",
-                    val, val
+                    "Signed int overflows i64: (-){val} 0x{val:016x}"
                 )));
             }
             // 0 should be encoded as PosInt64, so val >= 1 for NegInt64
@@ -243,8 +238,7 @@ pub fn parse_value<H: ValueHandler>(
         }
         _ => {
             return Err(ParseError::new(format!(
-                "Unexpected character at start of value: 0x{:02x}",
-                c
+                "Unexpected character at start of value: 0x{c:02x}"
             )));
         }
     }
@@ -278,8 +272,7 @@ fn parse_key<H: ValueHandler>(
         }
         _ => {
             return Err(ParseError::new(format!(
-                "Unexpected character at start of key: 0x{:02x}",
-                c
+                "Unexpected character at start of key: 0x{c:02x}"
             )));
         }
     }
@@ -361,8 +354,7 @@ pub fn parse_record<H: RecordHandler>(
             Ok(true)
         }
         other => Err(ParseError::new(format!(
-            "Unexpected character at start of record: 0x{:02x}",
-            other
+            "Unexpected character at start of record: 0x{other:02x}"
         ))),
     }
 }

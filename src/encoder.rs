@@ -48,7 +48,7 @@ impl AuEncoder {
         string_intern_config: StringInternConfig,
     ) -> Self {
         let clear_threshold = string_intern_config.clear_threshold;
-        let mut encoder = AuEncoder {
+        let mut encoder = Self {
             string_intern: StringIntern::with_config(string_intern_config),
             dict_buf: VectorBuffer::new(),
             buf: VectorBuffer::new(),

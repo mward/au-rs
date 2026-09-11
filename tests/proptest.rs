@@ -33,9 +33,9 @@ enum AuValue {
     U64(u64),
     F64(f64), // finite only; NaN/Inf are decoded to strings, tested separately
     Str(String),
-    Array(Vec<AuValue>),
+    Array(Vec<Self>),
     /// Keys are unique (generated from a map), so order/dedup never matter.
-    Object(Vec<(String, AuValue)>),
+    Object(Vec<(String, Self)>),
 }
 
 fn write_value(w: &mut AuWriter, v: &AuValue) {
@@ -140,7 +140,7 @@ struct RecordCollector {
 
 impl RecordCollector {
     const fn new() -> Self {
-        RecordCollector {
+        Self {
             inner: StringCollectingJsonHandler::new(),
             results: Vec::new(),
         }

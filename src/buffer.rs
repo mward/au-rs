@@ -12,7 +12,7 @@ impl VectorBuffer {
     }
 
     pub fn with_capacity(size: usize) -> Self {
-        VectorBuffer {
+        Self {
             v: Vec::with_capacity(size),
         }
     }
