@@ -21,8 +21,8 @@ impl Dict {
         self.last_dict_pos = sor;
     }
 
-    pub fn add(&mut self, sor: usize, value: &str) {
-        self.dictionary.push(value.to_string());
+    pub fn add(&mut self, sor: usize, value: String) {
+        self.dictionary.push(value);
         self.last_dict_pos = sor;
     }
 

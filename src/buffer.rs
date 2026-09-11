@@ -17,29 +17,35 @@ impl VectorBuffer {
         }
     }
 
+    #[inline]
     pub fn put(&mut self, c: u8) {
         self.v.push(c);
     }
 
     /// Reserve `size` zeroed bytes at the end and return them for in-place writing.
+    #[inline]
     pub fn raw(&mut self, size: usize) -> &mut [u8] {
         let start = self.v.len();
         self.v.resize(start + size, 0);
         &mut self.v[start..]
     }
 
+    #[inline]
     pub fn write_bytes(&mut self, data: &[u8]) {
         self.v.extend_from_slice(data);
     }
 
+    #[inline]
     pub const fn tellp(&self) -> usize {
         self.v.len()
     }
 
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         &self.v
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.v.clear();
     }

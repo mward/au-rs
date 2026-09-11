@@ -65,7 +65,7 @@ impl<V: ValueHandler> RecordHandler for AuRecordHandler<'_, V> {
             let s = String::from_utf8_lossy(&self.str_buf).into_owned();
             let sor = self.sor;
             if let Some(dict) = self.dictionary.latest() {
-                dict.add(sor, &s);
+                dict.add(sor, s);
             }
         }
     }
