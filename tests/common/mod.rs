@@ -1,8 +1,24 @@
-use crate::handler::ValueHandler;
+//! Shared helpers for the integration tests.
+//!
+//! Contains a `ValueHandler` that reconstructs each decoded record as a
+//! `serde_json::Value` (previously `src/json_handler.rs`), plus a small
+//! encode/decode round-trip harness.
+
+#![allow(dead_code)]
+
+use au::byte_source::BufferByteSource;
+use au::decoder::parse_stream;
+use au::dictionary::Dictionary;
+use au::encoder::AuEncoder;
+use au::handler::ValueHandler;
+use au::writer::AuWriter;
 use serde_json::Value as JsonValue;
 
+// ============================================================
+// JSON-reconstructing value handler
+// ============================================================
+
 /// A value handler that builds a serde_json::Value for each record.
-/// Used for testing round-trip encode/decode.
 pub struct JsonOutputHandler {
     stack: Vec<BuildState>,
     result: Option<JsonValue>,
@@ -156,19 +172,11 @@ impl ValueHandler for JsonOutputHandler {
         self.push_value(JsonValue::String(format!("<dictref:{}>", _dict_idx)));
     }
 
-    fn on_string_start(&mut self, _sov: usize, _length: usize) {
-        // String fragments will be collected; we use a simple approach:
-        // the on_string_fragment / on_string_end pair will handle it
-    }
+    fn on_string_start(&mut self, _sov: usize, _length: usize) {}
 
-    fn on_string_end(&mut self) {
-        // String has been fully assembled by fragments - handled in on_string_fragment
-        // We need a buffer approach. Let's use a separate mechanism.
-    }
+    fn on_string_end(&mut self) {}
 
-    fn on_string_fragment(&mut self, _fragment: &[u8]) {
-        // See StringCollectingJsonHandler below
-    }
+    fn on_string_fragment(&mut self, _fragment: &[u8]) {}
 }
 
 /// A wrapper around JsonOutputHandler that collects string fragments
@@ -222,5 +230,137 @@ impl ValueHandler for StringCollectingJsonHandler {
     fn on_string_end(&mut self) {
         let s = String::from_utf8_lossy(&self.str_buf).into_owned();
         self.inner.push_value(JsonValue::String(s));
+    }
+}
+
+// ============================================================
+// Encoder round-trip harness
+// ============================================================
+
+/// Multi-record encoder test helper
+pub struct EncoderTestHarness {
+    encoder: AuEncoder,
+    storage: Vec<u8>,
+}
+
+impl EncoderTestHarness {
+    pub fn new() -> Self {
+        EncoderTestHarness {
+            encoder: AuEncoder::new(),
+            storage: Vec::new(),
+        }
+    }
+
+    pub fn encode(&mut self, f: impl FnOnce(&mut AuWriter)) {
+        let storage = &mut self.storage;
+        self.encoder.encode(
+            f,
+            |s1, s2| {
+                storage.extend_from_slice(s1);
+                storage.extend_from_slice(s2);
+                s1.len() + s2.len()
+            },
+        );
+    }
+
+    pub fn get_json(&self) -> String {
+        let mut source = BufferByteSource::new(&self.storage);
+        let mut dictionary = Dictionary::new();
+
+        let mut handler = MultiValueJsonHandler::new();
+        let mut record_handler = AuRecordHandler::new(&mut dictionary, &mut handler);
+        let _ = parse_stream(&mut source, &mut record_handler, true);
+        drop(record_handler);
+        handler.finalize();
+
+        handler.results.join("\n")
+    }
+}
+
+impl Default for EncoderTestHarness {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+use au::record_handler::AuRecordHandler;
+
+/// Handler that collects multiple JSON values (one per au record)
+pub struct MultiValueJsonHandler {
+    inner: StringCollectingJsonHandler,
+    results: Vec<String>,
+}
+
+impl MultiValueJsonHandler {
+    pub fn new() -> Self {
+        MultiValueJsonHandler {
+            inner: StringCollectingJsonHandler::new(),
+            results: Vec::new(),
+        }
+    }
+
+    fn finalize(&mut self) {
+        if let Some(val) = self.inner.take_result() {
+            self.results.push(serde_json::to_string(&val).unwrap());
+        }
+    }
+
+    fn check_and_collect(&mut self) {
+        if let Some(val) = self.inner.take_result() {
+            self.results.push(serde_json::to_string(&val).unwrap());
+        }
+    }
+}
+
+impl Default for MultiValueJsonHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ValueHandler for MultiValueJsonHandler {
+    fn on_object_start(&mut self) {
+        self.check_and_collect();
+        self.inner.on_object_start();
+    }
+    fn on_object_end(&mut self) { self.inner.on_object_end(); }
+    fn on_array_start(&mut self) {
+        self.check_and_collect();
+        self.inner.on_array_start();
+    }
+    fn on_array_end(&mut self) { self.inner.on_array_end(); }
+    fn on_null(&mut self, pos: usize) {
+        self.check_and_collect();
+        self.inner.on_null(pos);
+    }
+    fn on_bool(&mut self, pos: usize, val: bool) {
+        self.check_and_collect();
+        self.inner.on_bool(pos, val);
+    }
+    fn on_int(&mut self, pos: usize, val: i64) {
+        self.check_and_collect();
+        self.inner.on_int(pos, val);
+    }
+    fn on_uint(&mut self, pos: usize, val: u64) {
+        self.check_and_collect();
+        self.inner.on_uint(pos, val);
+    }
+    fn on_double(&mut self, pos: usize, val: f64) {
+        self.check_and_collect();
+        self.inner.on_double(pos, val);
+    }
+    fn on_time(&mut self, pos: usize, nanos: u64) {
+        self.check_and_collect();
+        self.inner.on_time(pos, nanos);
+    }
+    fn on_dict_ref(&mut self, pos: usize, dict_idx: usize) {
+        self.inner.on_dict_ref(pos, dict_idx);
+    }
+    fn on_string_start(&mut self, sov: usize, length: usize) {
+        self.inner.on_string_start(sov, length);
+    }
+    fn on_string_end(&mut self) { self.inner.on_string_end(); }
+    fn on_string_fragment(&mut self, fragment: &[u8]) {
+        self.inner.on_string_fragment(fragment);
     }
 }
