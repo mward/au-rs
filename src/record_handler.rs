@@ -1,6 +1,7 @@
 use crate::byte_source::BufferByteSource;
 use crate::decoder::parse_value;
 use crate::dictionary::Dictionary;
+use crate::error::ParseError;
 use crate::handler::{RecordHandler, ValueHandler};
 
 pub struct AuRecordHandler<'a, V: ValueHandler> {
@@ -43,15 +44,22 @@ impl<V: ValueHandler> RecordHandler for AuRecordHandler<'_, V> {
         }
     }
 
-    fn on_value(&mut self, rel_dict_pos: usize, len: usize, source: &mut BufferByteSource) {
+    fn on_value(
+        &mut self,
+        rel_dict_pos: usize,
+        len: usize,
+        source: &mut BufferByteSource,
+    ) -> Result<(), ParseError> {
         if let Ok(dict) = self.dictionary.find_dictionary_ref(self.sor, rel_dict_pos) {
             let mut wrapper = DictValueHandler {
                 inner: self.value_handler,
                 dict,
             };
-            let _ = parse_value(source, &mut wrapper, 0);
+            parse_value(source, &mut wrapper, 0)
         } else {
-            let _ = source.skip(len);
+            // No dictionary resolves this backref; skip the value's bytes so the
+            // stream stays aligned rather than surfacing a hard error.
+            source.skip(len)
         }
     }
 

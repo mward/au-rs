@@ -346,7 +346,7 @@ pub fn parse_record<H: RecordHandler>(
             let backref = read_backref(source)?;
             let len = read_varint(source)? as usize;
             let start_of_value = source.pos();
-            handler.on_value(backref as usize, len - 2, source);
+            handler.on_value(backref as usize, len - 2, source)?;
             term(source)?;
             if source.pos() - start_of_value != len {
                 return Err(ParseError::new(
@@ -397,8 +397,9 @@ fn check_header(source: &mut BufferByteSource) -> Result<(), ParseError> {
     }
 
     let mut hh = HeaderCheck { header_seen: false };
-    let _ = parse_record(source, &mut hh);
-    if !hh.header_seen {
+    // A parse failure on the first record means it isn't a valid header; report
+    // that specifically rather than surfacing the low-level parse error.
+    if parse_record(source, &mut hh).is_err() || !hh.header_seen {
         return Err(ParseError::new(
             "This file doesn't appear to start with an au header record",
         ));

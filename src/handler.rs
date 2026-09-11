@@ -1,3 +1,6 @@
+use crate::byte_source::BufferByteSource;
+use crate::error::ParseError;
+
 #[allow(unused_variables)]
 pub trait ValueHandler {
     fn on_object_start(&mut self) {}
@@ -23,9 +26,9 @@ pub trait RecordHandler {
         &mut self,
         rel_dict_pos: usize,
         len: usize,
-        source: &mut crate::byte_source::BufferByteSource,
-    ) {
-        let _ = source.skip(len);
+        source: &mut BufferByteSource,
+    ) -> Result<(), ParseError> {
+        source.skip(len)
     }
     fn on_header(&mut self, version: u64, metadata: &str) {}
     fn on_dict_clear(&mut self) {}
