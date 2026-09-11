@@ -6,15 +6,15 @@ pub struct BufferByteSource<'a> {
 }
 
 impl<'a> BufferByteSource<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
+    pub const fn new(buf: &'a [u8]) -> Self {
         BufferByteSource { buf, pos: 0 }
     }
 
-    pub fn pos(&self) -> usize {
+    pub const fn pos(&self) -> usize {
         self.pos
     }
 
-    pub fn end_pos(&self) -> usize {
+    pub const fn end_pos(&self) -> usize {
         self.buf.len()
     }
 

@@ -13,42 +13,54 @@ fn encoder_creation() {
 #[test]
 fn encoder_small_int() {
     let mut h = EncoderTestHarness::new();
-    h.encode(|w| { w.value_i32(2); });
+    h.encode(|w| {
+        w.value_i32(2);
+    });
     assert_eq!("2", h.get_json());
 }
 
 #[test]
 fn encoder_small_neg_int() {
     let mut h = EncoderTestHarness::new();
-    h.encode(|w| { w.value_i32(-9); });
+    h.encode(|w| {
+        w.value_i32(-9);
+    });
     assert_eq!("-9", h.get_json());
 }
 
 #[test]
 fn encoder_big_neg_int() {
     let mut h = EncoderTestHarness::new();
-    h.encode(|w| { w.value_i32(-99999); });
+    h.encode(|w| {
+        w.value_i32(-99999);
+    });
     assert_eq!("-99999", h.get_json());
 }
 
 #[test]
 fn encoder_really_big_neg_int() {
     let mut h = EncoderTestHarness::new();
-    h.encode(|w| { w.value_i64(i64::MIN); });
+    h.encode(|w| {
+        w.value_i64(i64::MIN);
+    });
     assert_eq!("-9223372036854775808", h.get_json());
 }
 
 #[test]
 fn encoder_big_int() {
     let mut h = EncoderTestHarness::new();
-    h.encode(|w| { w.value_i32(299792458); });
+    h.encode(|w| {
+        w.value_i32(299792458);
+    });
     assert_eq!("299792458", h.get_json());
 }
 
 #[test]
 fn encoder_empty_string() {
     let mut h = EncoderTestHarness::new();
-    h.encode(|w| { w.value_str(""); });
+    h.encode(|w| {
+        w.value_str("");
+    });
     assert_eq!(r#""""#, h.get_json());
 }
 
@@ -96,10 +108,7 @@ fn encoder_mixed_object_value2() {
             w.value_i32(42);
         });
     });
-    assert_eq!(
-        r#"{"SimpleKey":"AStringValue","Numeric":42}"#,
-        h.get_json()
-    );
+    assert_eq!(r#"{"SimpleKey":"AStringValue","Numeric":42}"#, h.get_json());
 }
 
 #[test]

@@ -7,3 +7,12 @@ edition = "2024"
 
 [dev-dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
+proptest = "1"
+criterion = "0.5"
+
+[[bench]]
+name = "au_bench"
+harness = false
+
+[lints.clippy]
+missing_const_for_fn = "warn"

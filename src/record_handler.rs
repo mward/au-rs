@@ -82,16 +82,36 @@ struct DictValueHandler<'a, V: ValueHandler> {
 }
 
 impl<V: ValueHandler> ValueHandler for DictValueHandler<'_, V> {
-    fn on_object_start(&mut self) { self.inner.on_object_start(); }
-    fn on_object_end(&mut self) { self.inner.on_object_end(); }
-    fn on_array_start(&mut self) { self.inner.on_array_start(); }
-    fn on_array_end(&mut self) { self.inner.on_array_end(); }
-    fn on_null(&mut self, pos: usize) { self.inner.on_null(pos); }
-    fn on_bool(&mut self, pos: usize, val: bool) { self.inner.on_bool(pos, val); }
-    fn on_int(&mut self, pos: usize, val: i64) { self.inner.on_int(pos, val); }
-    fn on_uint(&mut self, pos: usize, val: u64) { self.inner.on_uint(pos, val); }
-    fn on_double(&mut self, pos: usize, val: f64) { self.inner.on_double(pos, val); }
-    fn on_time(&mut self, pos: usize, nanos: u64) { self.inner.on_time(pos, nanos); }
+    fn on_object_start(&mut self) {
+        self.inner.on_object_start();
+    }
+    fn on_object_end(&mut self) {
+        self.inner.on_object_end();
+    }
+    fn on_array_start(&mut self) {
+        self.inner.on_array_start();
+    }
+    fn on_array_end(&mut self) {
+        self.inner.on_array_end();
+    }
+    fn on_null(&mut self, pos: usize) {
+        self.inner.on_null(pos);
+    }
+    fn on_bool(&mut self, pos: usize, val: bool) {
+        self.inner.on_bool(pos, val);
+    }
+    fn on_int(&mut self, pos: usize, val: i64) {
+        self.inner.on_int(pos, val);
+    }
+    fn on_uint(&mut self, pos: usize, val: u64) {
+        self.inner.on_uint(pos, val);
+    }
+    fn on_double(&mut self, pos: usize, val: f64) {
+        self.inner.on_double(pos, val);
+    }
+    fn on_time(&mut self, pos: usize, nanos: u64) {
+        self.inner.on_time(pos, nanos);
+    }
 
     fn on_dict_ref(&mut self, pos: usize, dict_idx: usize) {
         if let Ok(s) = self.dict.at(dict_idx) {
@@ -104,7 +124,9 @@ impl<V: ValueHandler> ValueHandler for DictValueHandler<'_, V> {
     fn on_string_start(&mut self, sov: usize, length: usize) {
         self.inner.on_string_start(sov, length);
     }
-    fn on_string_end(&mut self) { self.inner.on_string_end(); }
+    fn on_string_end(&mut self) {
+        self.inner.on_string_end();
+    }
     fn on_string_fragment(&mut self, fragment: &[u8]) {
         self.inner.on_string_fragment(fragment);
     }

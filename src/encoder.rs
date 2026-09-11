@@ -1,7 +1,7 @@
 use crate::buffer::VectorBuffer;
 use crate::common::*;
 use crate::string_intern::{InternMode, StringIntern, StringInternConfig};
-use crate::writer::{write_explicit_string, write_term, AuWriter};
+use crate::writer::{AuWriter, write_explicit_string, write_term};
 
 pub struct AuEncoder {
     string_intern: StringIntern,
@@ -87,7 +87,8 @@ impl AuEncoder {
             // `dict_buf` and `string_intern` are disjoint fields, so we can read the
             // interned strings while writing them out (as explicit, non-interned strings).
             self.dict_buf.put(b'A');
-            self.dict_buf.write_bytes(&(self.backref as u32).to_le_bytes());
+            self.dict_buf
+                .write_bytes(&(self.backref as u32).to_le_bytes());
             for s in &self.string_intern.dict()[self.last_dict_size..dict_len] {
                 write_explicit_string(&mut self.dict_buf, s);
             }

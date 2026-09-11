@@ -26,7 +26,7 @@ impl Dict {
         self.last_dict_pos = sor;
     }
 
-    pub fn includes(&self, sor: usize) -> bool {
+    pub const fn includes(&self, sor: usize) -> bool {
         self.start_pos <= sor && sor <= self.last_dict_pos
     }
 
@@ -35,13 +35,16 @@ impl Dict {
             return Err(ParseError::new(format!(
                 "Dictionary reference index {} out of range. Dictionary started at position {}, \
                  last add occurred at position {}, and currently has {} entries.",
-                idx, self.start_pos, self.last_dict_pos, self.dictionary.len()
+                idx,
+                self.start_pos,
+                self.last_dict_pos,
+                self.dictionary.len()
             )));
         }
         Ok(&self.dictionary[idx])
     }
 
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.dictionary.len()
     }
 }
@@ -78,7 +81,11 @@ impl Dictionary {
         self.dictionaries.last_mut().unwrap()
     }
 
-    pub fn find_dictionary_ref(&self, sor: usize, rel_dict_pos: usize) -> Result<&Dict, ParseError> {
+    pub fn find_dictionary_ref(
+        &self,
+        sor: usize,
+        rel_dict_pos: usize,
+    ) -> Result<&Dict, ParseError> {
         let pos = sor - rel_dict_pos;
         if let Some(dict) = self.dictionaries.iter().rev().find(|d| d.includes(pos)) {
             return Ok(dict);
@@ -90,7 +97,11 @@ impl Dictionary {
         )))
     }
 
-    pub fn find_dictionary(&mut self, sor: usize, rel_dict_pos: usize) -> Result<&mut Dict, ParseError> {
+    pub fn find_dictionary(
+        &mut self,
+        sor: usize,
+        rel_dict_pos: usize,
+    ) -> Result<&mut Dict, ParseError> {
         let pos = sor - rel_dict_pos;
         if let Some(idx) = self.dictionaries.iter().rposition(|d| d.includes(pos)) {
             return Ok(&mut self.dictionaries[idx]);

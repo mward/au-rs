@@ -8,14 +8,14 @@ pub struct AuWriter<'a> {
 }
 
 impl<'a> AuWriter<'a> {
-    pub fn new(buf: &'a mut VectorBuffer, string_intern: &'a mut StringIntern) -> Self {
+    pub const fn new(buf: &'a mut VectorBuffer, string_intern: &'a mut StringIntern) -> Self {
         AuWriter {
             msg_buf: buf,
             string_intern,
         }
     }
 
-    pub fn msg_buf_tellp(&self) -> usize {
+    pub const fn msg_buf_tellp(&self) -> usize {
         self.msg_buf.tellp()
     }
 
@@ -45,8 +45,11 @@ impl<'a> AuWriter<'a> {
     }
 
     pub fn value_bool(&mut self, b: bool) -> &mut Self {
-        self.msg_buf
-            .put(if b { Marker::True as u8 } else { Marker::False as u8 });
+        self.msg_buf.put(if b {
+            Marker::True as u8
+        } else {
+            Marker::False as u8
+        });
         self
     }
 
@@ -72,13 +75,19 @@ impl<'a> AuWriter<'a> {
         // `unsigned_abs` yields the magnitude and handles i64::MIN without overflow.
         let val: u64 = i.unsigned_abs();
         if val >= 1u64 << 48 {
-            self.msg_buf
-                .put(if neg { Marker::NegInt64 as u8 } else { Marker::PosInt64 as u8 });
+            self.msg_buf.put(if neg {
+                Marker::NegInt64 as u8
+            } else {
+                Marker::PosInt64 as u8
+            });
             self.msg_buf.write_bytes(&val.to_le_bytes());
             return self;
         }
-        self.msg_buf
-            .put(if neg { Marker::NegVarint as u8 } else { Marker::Varint as u8 });
+        self.msg_buf.put(if neg {
+            Marker::NegVarint as u8
+        } else {
+            Marker::Varint as u8
+        });
         self.value_int(val);
         self
     }

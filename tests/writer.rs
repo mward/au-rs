@@ -82,19 +82,68 @@ fn formatter_int64() {
     }
     let expected: Vec<u8> = vec![
         Marker::PosInt64 as u8,
-        0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12,
+        0xef,
+        0xcd,
+        0xab,
+        0x90,
+        0x78,
+        0x56,
+        0x34,
+        0x12,
         Marker::NegInt64 as u8,
-        0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12,
+        0xef,
+        0xcd,
+        0xab,
+        0x90,
+        0x78,
+        0x56,
+        0x34,
+        0x12,
         Marker::PosInt64 as u8,
-        0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0xf2,
+        0xef,
+        0xcd,
+        0xab,
+        0x90,
+        0x78,
+        0x56,
+        0x34,
+        0xf2,
         Marker::PosInt64 as u8,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff,
+        0xff,
+        0xff,
+        0xff,
+        0xff,
+        0xff,
+        0xff,
+        0xff,
         Marker::NegInt64 as u8,
-        0xb8, 0x04, 0xeb, 0xff, 0xff, 0xff, 0xff, 0x7f,
+        0xb8,
+        0x04,
+        0xeb,
+        0xff,
+        0xff,
+        0xff,
+        0xff,
+        0x7f,
         Marker::PosInt64 as u8,
-        0x48, 0xfb, 0x14, 0x00, 0x00, 0x00, 0x00, 0x80,
+        0x48,
+        0xfb,
+        0x14,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x80,
         Marker::NegInt64 as u8,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x80,
     ];
     assert_eq!(expected, buf.as_bytes());
 }
@@ -108,9 +157,7 @@ fn formatter_time() {
         let nanos: u64 = 35_000_000_000;
         writer.nanos(nanos);
     }
-    let expected: Vec<u8> = vec![
-        0x04, 0x00, 0x9e, 0x29, 0x26, 0x08, 0x00, 0x00, 0x00,
-    ];
+    let expected: Vec<u8> = vec![0x04, 0x00, 0x9e, 0x29, 0x26, 0x08, 0x00, 0x00, 0x00];
     assert_eq!(expected, buf.as_bytes());
 }
 
@@ -150,10 +197,42 @@ fn formatter_nan() {
     }
     let expected: Vec<u8> = vec![
         Marker::ArrayStart as u8,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf8, 0x7f,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf8, 0x7f,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf8, 0x7f,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf8, 0xff,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf8,
+        0x7f,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf8,
+        0x7f,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf8,
+        0x7f,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf8,
+        0xff,
         Marker::ArrayEnd as u8,
     ];
     assert_eq!(expected, buf.as_bytes());
@@ -173,10 +252,42 @@ fn formatter_inf() {
     }
     let expected: Vec<u8> = vec![
         Marker::ArrayStart as u8,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf0, 0x7f,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf0, 0xff,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf0, 0x7f,
-        Marker::Double as u8, 0, 0, 0, 0, 0, 0, 0xf0, 0xff,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf0,
+        0x7f,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf0,
+        0xff,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf0,
+        0x7f,
+        Marker::Double as u8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0xf0,
+        0xff,
         Marker::ArrayEnd as u8,
     ];
     assert_eq!(expected, buf.as_bytes());
@@ -240,10 +351,14 @@ fn formatter_flat_map() {
         });
     }
     let mut expected = vec![0x0du8];
-    expected.push(0x24); expected.extend_from_slice(b"Key1");
-    expected.push(0x26); expected.extend_from_slice(b"value1");
-    expected.push(0x24); expected.extend_from_slice(b"key1");
-    expected.push(0x26); expected.extend_from_slice(b"Value1");
+    expected.push(0x24);
+    expected.extend_from_slice(b"Key1");
+    expected.push(0x26);
+    expected.extend_from_slice(b"value1");
+    expected.push(0x24);
+    expected.extend_from_slice(b"key1");
+    expected.push(0x26);
+    expected.extend_from_slice(b"Value1");
     expected.push(0x0e);
     assert_eq!(expected, buf.as_bytes());
 }
@@ -263,8 +378,7 @@ fn formatter_nested_map() {
         });
     }
     let expected: Vec<u8> = vec![
-        0x0d, 0x22, b'k', b'1', 0x22, b'v', b'1',
-        0x80, // interned "nested" -> dict ref 0
+        0x0d, 0x22, b'k', b'1', 0x22, b'v', b'1', 0x80, // interned "nested" -> dict ref 0
         0x0d, 0x22, b'k', b'2', 0x22, b'v', b'2', 0x0e, 0x0e,
     ];
     assert_eq!(expected, buf.as_bytes());

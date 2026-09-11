@@ -19,7 +19,12 @@ pub trait ValueHandler {
 #[allow(unused_variables)]
 pub trait RecordHandler {
     fn on_record_start(&mut self, abs_pos: usize) {}
-    fn on_value(&mut self, rel_dict_pos: usize, len: usize, source: &mut crate::byte_source::BufferByteSource) {
+    fn on_value(
+        &mut self,
+        rel_dict_pos: usize,
+        len: usize,
+        source: &mut crate::byte_source::BufferByteSource,
+    ) {
         let _ = source.skip(len);
     }
     fn on_header(&mut self, version: u64, metadata: &str) {}

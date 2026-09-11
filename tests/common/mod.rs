@@ -35,14 +35,14 @@ enum BuildState {
 }
 
 impl JsonOutputHandler {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         JsonOutputHandler {
             stack: Vec::new(),
             result: None,
         }
     }
 
-    pub fn take_result(&mut self) -> Option<JsonValue> {
+    pub const fn take_result(&mut self) -> Option<JsonValue> {
         self.result.take()
     }
 
@@ -186,14 +186,14 @@ pub struct StringCollectingJsonHandler {
 }
 
 impl StringCollectingJsonHandler {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         StringCollectingJsonHandler {
             inner: JsonOutputHandler::new(),
             str_buf: Vec::new(),
         }
     }
 
-    pub fn take_result(&mut self) -> Option<JsonValue> {
+    pub const fn take_result(&mut self) -> Option<JsonValue> {
         self.inner.take_result()
     }
 }
@@ -205,16 +205,36 @@ impl Default for StringCollectingJsonHandler {
 }
 
 impl ValueHandler for StringCollectingJsonHandler {
-    fn on_object_start(&mut self) { self.inner.on_object_start(); }
-    fn on_object_end(&mut self) { self.inner.on_object_end(); }
-    fn on_array_start(&mut self) { self.inner.on_array_start(); }
-    fn on_array_end(&mut self) { self.inner.on_array_end(); }
-    fn on_null(&mut self, pos: usize) { self.inner.on_null(pos); }
-    fn on_bool(&mut self, pos: usize, val: bool) { self.inner.on_bool(pos, val); }
-    fn on_int(&mut self, pos: usize, val: i64) { self.inner.on_int(pos, val); }
-    fn on_uint(&mut self, pos: usize, val: u64) { self.inner.on_uint(pos, val); }
-    fn on_double(&mut self, pos: usize, val: f64) { self.inner.on_double(pos, val); }
-    fn on_time(&mut self, pos: usize, nanos: u64) { self.inner.on_time(pos, nanos); }
+    fn on_object_start(&mut self) {
+        self.inner.on_object_start();
+    }
+    fn on_object_end(&mut self) {
+        self.inner.on_object_end();
+    }
+    fn on_array_start(&mut self) {
+        self.inner.on_array_start();
+    }
+    fn on_array_end(&mut self) {
+        self.inner.on_array_end();
+    }
+    fn on_null(&mut self, pos: usize) {
+        self.inner.on_null(pos);
+    }
+    fn on_bool(&mut self, pos: usize, val: bool) {
+        self.inner.on_bool(pos, val);
+    }
+    fn on_int(&mut self, pos: usize, val: i64) {
+        self.inner.on_int(pos, val);
+    }
+    fn on_uint(&mut self, pos: usize, val: u64) {
+        self.inner.on_uint(pos, val);
+    }
+    fn on_double(&mut self, pos: usize, val: f64) {
+        self.inner.on_double(pos, val);
+    }
+    fn on_time(&mut self, pos: usize, nanos: u64) {
+        self.inner.on_time(pos, nanos);
+    }
     fn on_dict_ref(&mut self, pos: usize, dict_idx: usize) {
         self.inner.on_dict_ref(pos, dict_idx);
     }
@@ -253,14 +273,11 @@ impl EncoderTestHarness {
 
     pub fn encode(&mut self, f: impl FnOnce(&mut AuWriter)) {
         let storage = &mut self.storage;
-        self.encoder.encode(
-            f,
-            |s1, s2| {
-                storage.extend_from_slice(s1);
-                storage.extend_from_slice(s2);
-                s1.len() + s2.len()
-            },
-        );
+        self.encoder.encode(f, |s1, s2| {
+            storage.extend_from_slice(s1);
+            storage.extend_from_slice(s2);
+            s1.len() + s2.len()
+        });
     }
 
     pub fn get_json(&self) -> String {
@@ -292,7 +309,7 @@ pub struct MultiValueJsonHandler {
 }
 
 impl MultiValueJsonHandler {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         MultiValueJsonHandler {
             inner: StringCollectingJsonHandler::new(),
             results: Vec::new(),
@@ -323,12 +340,16 @@ impl ValueHandler for MultiValueJsonHandler {
         self.check_and_collect();
         self.inner.on_object_start();
     }
-    fn on_object_end(&mut self) { self.inner.on_object_end(); }
+    fn on_object_end(&mut self) {
+        self.inner.on_object_end();
+    }
     fn on_array_start(&mut self) {
         self.check_and_collect();
         self.inner.on_array_start();
     }
-    fn on_array_end(&mut self) { self.inner.on_array_end(); }
+    fn on_array_end(&mut self) {
+        self.inner.on_array_end();
+    }
     fn on_null(&mut self, pos: usize) {
         self.check_and_collect();
         self.inner.on_null(pos);
@@ -359,7 +380,9 @@ impl ValueHandler for MultiValueJsonHandler {
     fn on_string_start(&mut self, sov: usize, length: usize) {
         self.inner.on_string_start(sov, length);
     }
-    fn on_string_end(&mut self) { self.inner.on_string_end(); }
+    fn on_string_end(&mut self) {
+        self.inner.on_string_end();
+    }
     fn on_string_fragment(&mut self, fragment: &[u8]) {
         self.inner.on_string_fragment(fragment);
     }

@@ -32,7 +32,7 @@ impl VectorBuffer {
         self.v.extend_from_slice(data);
     }
 
-    pub fn tellp(&self) -> usize {
+    pub const fn tellp(&self) -> usize {
         self.v.len()
     }
 

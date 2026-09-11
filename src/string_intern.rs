@@ -77,7 +77,13 @@ impl UsageTracker {
 
         let order_index = self.in_order.len();
         let s = sv.to_string();
-        self.dict.insert(s.clone(), CacheEntry { count: 1, order_index });
+        self.dict.insert(
+            s.clone(),
+            CacheEntry {
+                count: 1,
+                order_index,
+            },
+        );
         self.in_order.push(s);
         false
     }
@@ -181,7 +187,9 @@ impl StringIntern {
 
     fn do_reindex(&mut self) {
         let mut tmp_dict: Vec<(usize, String)> = self
-            .dictionary.values().map(|entry| {
+            .dictionary
+            .values()
+            .map(|entry| {
                 (
                     entry.occurrences,
                     self.dict_in_order[entry.intern_index].clone(),
