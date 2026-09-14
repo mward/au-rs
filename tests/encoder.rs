@@ -3,7 +3,7 @@
 mod common;
 
 use au::encoder::AuEncoder;
-use common::EncoderTestHarness;
+use common::{EncoderTestHarness, decode_to_json_string};
 
 #[test]
 fn encoder_creation() {
@@ -154,4 +154,79 @@ fn encoder_multi_record() {
         "{\"1st\":\"record\",\"key\":3.125}\n{\"2nd\":\"record\",\"transcends\":2.625}",
         h.get_json()
     );
+}
+
+// ============================================================
+// Backref-overflow protection (ported from AuEncoderBackref.*)
+// ============================================================
+
+/// Encode `records` maps with a stable interned value under a given backref
+/// threshold. Purge/reindex are disabled so only the backref threshold drives
+/// dictionary records. Returns the encoded bytes.
+fn encode_with_backref_threshold(threshold: usize, records: usize) -> Vec<u8> {
+    let mut enc = AuEncoder::with_options(String::new(), 0, 50, 0);
+    enc.set_backref_threshold(threshold);
+    let mut storage = Vec::new();
+    for n in 0..records as i64 {
+        enc.encode(
+            |w| {
+                w.map(|w| {
+                    w.kv_i64("n", n);
+                    w.kv_str("stable", "a value long enough to get interned");
+                });
+            },
+            |a, b| {
+                storage.extend_from_slice(a);
+                storage.extend_from_slice(b);
+                a.len() + b.len()
+            },
+        );
+    }
+    storage
+}
+
+/// A small backref threshold forces extra dictionary records (larger output),
+/// but the decoded content must be identical to the relaxed-threshold stream.
+#[test]
+fn extra_dictionary_records_do_not_break_decoding() {
+    let relaxed = encode_with_backref_threshold(1 << 20, 500);
+    let frequent = encode_with_backref_threshold(256, 500);
+
+    assert!(
+        frequent.len() > relaxed.len(),
+        "a small threshold should have forced extra dictionary records \
+         (frequent={}, relaxed={})",
+        frequent.len(),
+        relaxed.len()
+    );
+    assert_eq!(
+        decode_to_json_string(&relaxed),
+        decode_to_json_string(&frequent)
+    );
+}
+
+/// `checked_backref` accepts values up to u32::MAX and returns them unchanged.
+#[test]
+fn narrowing_accepts_values_up_to_u32_max() {
+    let limit = u32::MAX as usize;
+    assert_eq!(0, AuEncoder::checked_backref(0));
+    assert_eq!(u32::MAX, AuEncoder::checked_backref(limit));
+}
+
+/// `checked_backref` panics rather than silently truncating past u32::MAX.
+#[test]
+#[should_panic(expected = "exceeds 32 bits")]
+fn narrowing_past_u32_max_panics() {
+    let _ = AuEncoder::checked_backref(u32::MAX as usize + 1);
+}
+
+/// The default threshold leaves at least 1 GiB of headroom below the 2^32
+/// limit, so a single large record can't push the backref past it after the
+/// last check.
+#[test]
+fn default_threshold_leaves_room_for_a_large_record() {
+    let limit: u64 = 1 << 32;
+    let threshold = AuEncoder::DEFAULT_BACKREF_THRESHOLD as u64;
+    assert!(threshold < limit);
+    assert!(limit - threshold >= (1 << 30));
 }

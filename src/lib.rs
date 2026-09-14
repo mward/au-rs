@@ -6,6 +6,7 @@ pub mod dictionary;
 pub mod encoder;
 pub mod error;
 pub mod handler;
+pub mod magic;
 pub mod record_handler;
 pub mod string_intern;
 pub mod writer;

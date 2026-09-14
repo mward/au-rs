@@ -381,32 +381,29 @@ pub fn parse_stream<H: RecordHandler>(
 }
 
 fn check_header(source: &mut BufferByteSource) -> Result<(), ParseError> {
-    struct HeaderCheck {
-        header_seen: bool,
-    }
-    impl RecordHandler for HeaderCheck {
-        fn on_header(&mut self, _version: u64, _metadata: &str) {
-            self.header_seen = true;
-        }
+    let not_au = || ParseError::new("This file doesn't appear to start with an au header record");
+
+    // Empty input is not an error: there are simply no records to parse.
+    if source.peek().is_none() {
+        return Ok(());
     }
 
-    match source.peek() {
-        None => return Ok(()),
-        Some(b) if b != b'H' => {
-            return Err(ParseError::new(
-                "This file doesn't appear to start with an au header record",
-            ));
-        }
-        Some(_) => {}
+    // Verify the `HAU` magic explicitly. Whether the input is au at all and
+    // whether we can decode its version are separate questions: a wrong magic
+    // means "not au", but a correct magic with an unsupported version should be
+    // reported as a version error, not misdiagnosed as non-au input. This
+    // consumes the header record, so `parse_stream` continues from the first
+    // dictionary/value record.
+    if source.next_byte() != Some(b'H')
+        || source.next_byte() != Some(b'A')
+        || source.next_byte() != Some(b'U')
+    {
+        return Err(not_au());
     }
 
-    let mut hh = HeaderCheck { header_seen: false };
-    // A parse failure on the first record means it isn't a valid header; report
-    // that specifically rather than surfacing the low-level parse error.
-    if parse_record(source, &mut hh).is_err() || !hh.header_seen {
-        return Err(ParseError::new(
-            "This file doesn't appear to start with an au header record",
-        ));
-    }
+    // Magic matched: it's an au file. Surface version/metadata errors verbatim.
+    parse_format_version(source)?;
+    parse_full_string_to_string(source, MAX_METADATA_SIZE)?;
+    term(source)?;
     Ok(())
 }

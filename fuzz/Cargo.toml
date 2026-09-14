@@ -1,0 +1,28 @@
+[package]
+name = "au-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Own workspace so the parent `au` crate doesn't try to build the fuzz targets
+# (they need nightly + the sanitizer runtime).
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.au]
+path = ".."
+
+[[bin]]
+name = "parse_stream"
+path = "fuzz_targets/parse_stream.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

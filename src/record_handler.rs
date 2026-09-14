@@ -64,10 +64,13 @@ impl<V: ValueHandler> RecordHandler for AuRecordHandler<'_, V> {
     }
 
     fn on_string_start(&mut self, _sov: usize, len: usize) {
+        // `len` is an attacker-controlled capacity hint; the bytes themselves are
+        // bounds-checked as fragments arrive. Cap the hint so a bogus length
+        // can't request an absurd allocation (larger strings still grow as their
+        // fragments are appended).
+        const MAX_RESERVE_HINT: usize = 1 << 20;
         self.str_buf.clear();
-        // `len` is attacker-controlled and only a capacity hint here (the bytes
-        // are bounds-checked on read), so never abort on an oversized request.
-        let _ = self.str_buf.try_reserve(len);
+        let _ = self.str_buf.try_reserve(len.min(MAX_RESERVE_HINT));
     }
 
     fn on_string_end(&mut self) {

@@ -332,6 +332,22 @@ impl Default for MultiValueJsonHandler {
     }
 }
 
+/// Decode a full au byte stream into newline-joined JSON, one line per record.
+///
+/// Mirrors `EncoderTestHarness::get_json` but takes raw bytes, so tests can
+/// decode a stream produced by a separately-configured encoder. Parse errors
+/// are swallowed (records decoded before the error are still returned).
+pub fn decode_to_json_string(bytes: &[u8]) -> String {
+    let mut source = BufferByteSource::new(bytes);
+    let mut dictionary = Dictionary::new();
+    let mut handler = MultiValueJsonHandler::new();
+    let mut record_handler = AuRecordHandler::new(&mut dictionary, &mut handler);
+    let _ = parse_stream(&mut source, &mut record_handler, true);
+    drop(record_handler);
+    handler.finalize();
+    handler.results.join("\n")
+}
+
 impl ValueHandler for MultiValueJsonHandler {
     fn on_object_start(&mut self) {
         self.check_and_collect();

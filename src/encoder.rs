@@ -14,9 +14,26 @@ pub struct AuEncoder {
     purge_threshold: usize,
     reindex_interval: usize,
     clear_threshold: usize,
+    backref_threshold: usize,
 }
 
 impl AuEncoder {
+    /// Backrefs are stored in 32 bits, so a dictionary record must be emitted
+    /// before the running distance from the last one can overflow. Half the
+    /// available range leaves room for any plausible single record.
+    pub const DEFAULT_BACKREF_THRESHOLD: usize = 1 << 31;
+
+    /// Narrow a running backref to the 32 bits it occupies on the wire, panicking
+    /// rather than silently truncating into an undecodable stream. The backref
+    /// threshold ensures a dictionary record is emitted first, so this panic
+    /// signals a misconfiguration, not normal operation.
+    #[must_use]
+    pub fn checked_backref(backref: usize) -> u32 {
+        u32::try_from(backref).unwrap_or_else(|_| {
+            panic!("backref {backref} exceeds 32 bits; backref_threshold too high?")
+        })
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self::with_options(String::new(), 250_000, 50, 500_000)
@@ -63,6 +80,7 @@ impl AuEncoder {
             purge_threshold,
             reindex_interval,
             clear_threshold,
+            backref_threshold: Self::DEFAULT_BACKREF_THRESHOLD,
         };
 
         if metadata.len() > MAX_METADATA_SIZE {
@@ -84,6 +102,16 @@ impl AuEncoder {
         encoder
     }
 
+    /// Set the backref threshold: a dictionary record is emitted once this many
+    /// bytes accumulate since the last one, whether or not there is anything to
+    /// add, so the 32-bit backref can't overflow. Defaults to
+    /// [`Self::DEFAULT_BACKREF_THRESHOLD`]. Call before encoding any records.
+    /// Exposed mainly so tests need not encode gigabytes to exercise the path.
+    pub const fn set_backref_threshold(&mut self, threshold: usize) -> &mut Self {
+        self.backref_threshold = threshold;
+        self
+    }
+
     fn export_dict(&mut self) {
         let dict_len = self.string_intern.dict().len();
         if dict_len > self.last_dict_size {
@@ -92,7 +120,7 @@ impl AuEncoder {
             // interned strings while writing them out (as explicit, non-interned strings).
             self.dict_buf.put(b'A');
             self.dict_buf
-                .write_bytes(&(self.backref as u32).to_le_bytes());
+                .write_bytes(&Self::checked_backref(self.backref).to_le_bytes());
             for s in &self.string_intern.dict()[self.last_dict_size..dict_len] {
                 write_explicit_string(&mut self.dict_buf, s);
             }
@@ -106,12 +134,20 @@ impl AuEncoder {
     where
         W: FnOnce(&[u8], &[u8]) -> usize,
     {
+        // Reset the backref before the running distance from the last dictionary
+        // record can outgrow the 32 bits it's stored in. It must be a clear
+        // rather than an empty dict-add: readers only extend a dictionary's
+        // range when strings are actually added, so an empty add would leave
+        // this value record pointing outside any known dictionary.
+        if self.backref > self.backref_threshold {
+            self.emit_dict_clear();
+        }
         self.export_dict();
         let sor = self.dict_buf.len();
         {
             let mut af = AuWriter::new(&mut self.dict_buf, &mut self.string_intern);
             af.raw(b'V');
-            af.backref(self.backref as u32);
+            af.backref(Self::checked_backref(self.backref));
             af.value_int(self.buf.len() as u64);
         }
         self.backref += self.dict_buf.len() - sor;

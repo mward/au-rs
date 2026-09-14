@@ -77,6 +77,22 @@ fn value_record_len_one_errors() {
     assert!(parse(&bytes).is_err());
 }
 
+/// A string record declaring an absurd length must not over-allocate or panic:
+/// the length is only a capacity hint, and the actual bytes arrive (bounds
+/// checked) as fragments. Found by the `parse_stream` fuzz target.
+#[test]
+fn string_start_with_huge_len_does_not_over_allocate() {
+    use au::handler::RecordHandler;
+    let mut dictionary = Dictionary::new();
+    let mut inner = StringCollectingJsonHandler::new();
+    let mut rh = AuRecordHandler::new(&mut dictionary, &mut inner);
+    // usize::MAX as a declared length: a `reserve(len)` would panic with
+    // "capacity overflow"; the capped `try_reserve` must not.
+    rh.on_string_start(0, usize::MAX);
+    rh.on_string_fragment(b"hello");
+    rh.on_string_end();
+}
+
 /// A well-formed 'V' record whose backref points before the start of the
 /// stream must not panic: the backref simply fails to resolve and the value
 /// bytes are skipped. (len = 2 -> zero value bytes, then the terminator.)

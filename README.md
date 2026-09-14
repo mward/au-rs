@@ -151,3 +151,33 @@ cargo clippy --all-targets
 ```
 
 Requires a Rust toolchain with **edition 2024** support.
+
+## Fuzzing
+
+A coverage-guided [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz) /
+libFuzzer target for the decoder lives in `fuzz/`. It feeds arbitrary bytes
+through `parse_stream` and asserts the decoder always returns (Ok or Err) rather
+than panicking, overflowing, or hanging — complementing the random-input
+property tests (`tests/proptest.rs`) and the fixed-corpus test
+(`tests/fixtures.rs`).
+
+One-time setup (requires a nightly toolchain):
+
+```sh
+cargo install cargo-fuzz
+```
+
+Run the target (seeded from `fuzz/corpus/parse_stream/`):
+
+```sh
+cargo +nightly fuzz run parse_stream
+# time-boxed, e.g. one minute:
+cargo +nightly fuzz run parse_stream -- -max_total_time=60
+```
+
+If a crash is found, the offending input is written to
+`fuzz/artifacts/parse_stream/`; replay it with:
+
+```sh
+cargo +nightly fuzz run parse_stream fuzz/artifacts/parse_stream/<crash-file>
+```

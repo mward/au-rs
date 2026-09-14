@@ -31,6 +31,16 @@ impl<'a> BufferByteSource<'a> {
         self.buf.get(self.pos).copied()
     }
 
+    /// Return the not-yet-consumed bytes without advancing. Useful for
+    /// non-consuming inspection such as header/magic detection.
+    #[inline]
+    #[must_use]
+    pub const fn remaining(&self) -> &'a [u8] {
+        // `self.pos <= self.buf.len()` always holds, so this never panics.
+        let (_, rest) = self.buf.split_at(self.pos);
+        rest
+    }
+
     /// Consume and return the next byte, or `None` at end of input.
     #[inline]
     pub fn next_byte(&mut self) -> Option<u8> {
